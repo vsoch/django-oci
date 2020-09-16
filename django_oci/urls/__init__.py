@@ -23,32 +23,48 @@ from .routers import urlpatterns as router_patterns
 from django_oci import views
 from django_oci import settings
 
-app_name = 'django_oci'
+app_name = "django_oci"
 
 
 urlpatterns = [
-
     # https://github.com/opencontainers/distribution-spec/blob/master/spec.md#api-version-check
-    url(r"^%s/?$" % settings.URL_PREFIX, views.APIVersionCheck.as_view(), name="api-version-check"),
-
+    url(
+        r"^%s/?$" % settings.URL_PREFIX,
+        views.APIVersionCheck.as_view(),
+        name="api-version-check",
+    ),
     # https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pulling-an-image-manifest
     url(
-        r"^%s/(?P<name>[a-z0-9\/]+(?:[._-][a-z0-9]+)*)/manifests/(?P<reference>[A-Za-z0-9_+.-]+:[A-Fa-f0-9]+)/?$" % settings.URL_PREFIX,
+        r"^%s/(?P<name>[a-z0-9\/]+(?:[._-][a-z0-9]+)*)/manifests/(?P<reference>[A-Za-z0-9_+.-]+:[A-Fa-f0-9]+)/?$"
+        % settings.URL_PREFIX,
         views.ImageManifest.as_view(),
     ),
-
     url(
-        r"^%s/(?P<name>[a-z0-9\/]+(?:[._-][a-z0-9]+)*)/blobs/uploads/?$" % settings.URL_PREFIX,
+        r"^%s/(?P<name>[a-z0-9\/]+(?:[._-][a-z0-9]+)*)/blobs/uploads/?$"
+        % settings.URL_PREFIX,
         views.ImageBlobUpload.as_view(),
     ),
-
-    path('%s/<path:name>/blobs/download/<digest>/' % settings.URL_PREFIX, views.ImageBlobDownload.as_view(), name="image_blob_download"),
-    path('%s/<path:session_id>/blobs/upload/' % settings.URL_PREFIX, views.ImageBlobUpload.as_view(), name="image_blob_upload"),
-
-    path('', views.ChunkedUploadDemo.as_view(), name='chunked_upload'),
-    path('api/chunked_upload_complete/', views.MyChunkedUploadCompleteView.as_view(), name='api_chunked_upload_complete'),
-    path('api/chunked_upload/', views.MyChunkedUploadView.as_view(), name='api_chunked_upload'),
-
+    path(
+        "%s/<path:name>/blobs/download/<digest>/" % settings.URL_PREFIX,
+        views.ImageBlobDownload.as_view(),
+        name="image_blob_download",
+    ),
+    path(
+        "%s/<path:session_id>/blobs/upload/" % settings.URL_PREFIX,
+        views.ImageBlobUpload.as_view(),
+        name="image_blob_upload",
+    ),
+    path("", views.ChunkedUploadDemo.as_view(), name="chunked_upload"),
+    path(
+        "api/chunked_upload_complete/",
+        views.MyChunkedUploadCompleteView.as_view(),
+        name="api_chunked_upload_complete",
+    ),
+    path(
+        "api/chunked_upload/",
+        views.MyChunkedUploadView.as_view(),
+        name="api_chunked_upload",
+    ),
 ] + router_patterns
 
 #    url(
@@ -76,4 +92,4 @@ urlpatterns = [
 #        r"^container/(?P<collection>.+?)/(?P<name>.+?)/?$",
 #        ContainerDetailByName.as_view(),
 #    ),
-#] + router_patterns
+# ] + router_patterns

@@ -22,7 +22,6 @@ import re
 logger = logging.getLogger(__name__)
 
 
-
 # Regular expressions to parse registry, collection, repo, tag and version
 _docker_uri = re.compile(
     "(?:(?P<registry>[^/@]+[.:][^/@]*)/)?"
@@ -56,11 +55,23 @@ _default_uri = re.compile(
 
 def set_default(item, default, use_default):
     """if an item provided is None and boolean use_default is set to True,
-       return the default. Otherwise, return the item.
+    return the default. Otherwise, return the item.
     """
     if item is None and use_default:
         return default
     return item
+
+
+def parse_content_range(content_range):
+    """Given a content range, match based on regular expression and return
+    parsed start, end (both int)
+    """
+    # Ensure range matches regular expression
+    if not re.search("^[0-9]+-[0-9]+$", content_range):
+        raise ValueError
+
+    # Parse the content range into numbers
+    return [int(x.strip()) for x in content_range.strip().split("-")]
 
 
 def parse_image_name(
@@ -77,7 +88,7 @@ def parse_image_name(
 
     """return a collection and repo name and tag
     for an image file.
-    
+
     Parameters
     =========
     image_name: a user provided string indicating a collection,
@@ -85,7 +96,7 @@ def parse_image_name(
     tag: optionally specify tag as its own argument
          over-rides parsed image tag
     defaults: use defaults "latest" for tag and "library"
-              for collection. 
+              for collection.
     base: if defined, remove from image_name, appropriate if the
           user gave a registry url base that isn't part of namespace.
     lowercase: turn entire URI to lowercase (default is True)

@@ -33,13 +33,13 @@ PRIVACY_CHOICES = (
     (True, "Private (The collection will be not listed.)"),
 )
 
+
 def get_privacy_default():
     return settings.PRIVATE_ONLY
 
 
 def get_upload_folder(instance, filename):
-    """a helper function to upload to local storage
-    """
+    """a helper function to upload to local storage"""
     repository_name = instance.image.repository.name.lower()
 
     # First get a collection
@@ -107,12 +107,13 @@ class Repository(models.Model):
 
     class Meta:
         app_label = "django_oci"
-    
+
 
 class Image(models.Model):
     """A container image holds a particular version of a container for
-       a registry.
+    a registry.
     """
+
     add_date = models.DateTimeField("date container added", auto_now=True)
 
     # When a repository is deleted, so are the containers
@@ -133,15 +134,16 @@ class Image(models.Model):
         return "%s:%s" % (self.repository.name, self.tag)
 
     def create_upload_session(self):
-        """A function to create an upload session for a particular image
-        """       
+        """A function to create an upload session for a particular image"""
         # Get the django oci upload cache, and generate an expiring session upload id
-        filecache = cache.caches['django_oci_upload']
+        filecache = cache.caches["django_oci_upload"]
         session_id = "put/%s/%s/%s" % (self.repository.name, self.id, uuid.uuid4())
 
         # Expires in default 10 seconds
         filecache.set(session_id, 1, timeout=settings.SESSION_EXPIRES_SECONDS)
-        return reverse("django_oci:image_blob_upload", kwargs={"session_id": session_id})
+        return reverse(
+            "django_oci:image_blob_upload", kwargs={"session_id": session_id}
+        )
 
     # Return an image file path
     def get_image_path(self):
@@ -165,12 +167,17 @@ class Image(models.Model):
 
     class Meta:
         app_label = "django_oci"
-        unique_together = (("repository", "tag",),)
+        unique_together = (
+            (
+                "repository",
+                "tag",
+            ),
+        )
 
 
 class Blob(models.Model):
-    """a blob, which can be a binary or archive to be extracted.
-    """
+    """a blob, which can be a binary or archive to be extracted."""
+
     add_date = models.DateTimeField("date added", auto_now_add=True)
     modify_date = models.DateTimeField("date modified", auto_now=True)
     content_type = models.CharField(max_length=250, null=False)
@@ -192,8 +199,11 @@ class Blob(models.Model):
     def get_download_url(self):
         if self.remotefile is not None:
             return self.remotefile
-        return settings.DOMAIN_URL.strip("/") + reverse("django_oci:image_blob_download", kwargs={"name": self.image.repository.name, "digest":self.digest})
-        
+        return settings.DOMAIN_URL.strip("/") + reverse(
+            "django_oci:image_blob_download",
+            kwargs={"name": self.image.repository.name, "digest": self.digest},
+        )
+
     def get_abspath(self):
         return os.path.join(settings.MEDIA_ROOT, self.datafile.name)
 
@@ -202,13 +212,11 @@ class Blob(models.Model):
 
 
 class Annotation(models.Model):
-    """An annotation is a key/value pair to describe an image
-    """
+    """An annotation is a key/value pair to describe an image"""
+
     key = models.CharField(max_length=250, null=False, blank=False)
     value = models.CharField(max_length=250, null=False, blank=False)
-    images = models.ManyToManyField(
-        Image, blank=False, related_name="annotations"
-    )
+    images = models.ManyToManyField(Image, blank=False, related_name="annotations")
 
     def __str__(self):
         return "%s:%s" % (self.key, self.value)
@@ -227,9 +235,7 @@ class Annotation(models.Model):
 def delete_blobs(sender, instance, **kwargs):
     for image in instance.image_set.all():
         if hasattr(image, "datafile"):
-            count = Image.objects.filter(
-                image__datafile=image.datafile
-            ).count()
+            count = Image.objects.filter(image__datafile=image.datafile).count()
             if count == 0:
                 print("Deleting %s, no longer used." % image.datafile)
                 image.datafile.delete()

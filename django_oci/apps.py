@@ -18,6 +18,7 @@ limitations under the License.
 
 from django.apps import AppConfig
 
+
 class DjangoOciConfig(AppConfig):
-    name = 'django_oci'
-    verbose_name = 'Opencontainer Distribution specification for Django'
+    name = "django_oci"
+    verbose_name = "Opencontainer Distribution specification for Django"
