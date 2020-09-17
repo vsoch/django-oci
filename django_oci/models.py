@@ -25,6 +25,7 @@ from django.db.models.signals import post_delete
 from django.middleware import cache
 import uuid
 
+import json
 import os
 import uuid
 
@@ -125,9 +126,24 @@ class Image(models.Model):
     )
 
     tag = models.CharField(max_length=250, null=False, blank=False, default="latest")
+    manifest = models.TextField(null=False, blank=False, default="{}")
 
     # TODO: how do we define the version for this? digest of manifest?
     version = models.CharField(max_length=250, null=True, blank=True)
+
+    # Manifest functions to get, save, and return download url
+    def get_manifest(self):
+        return json.loads(self.manifest)
+
+    def save_manifest(self, manifest):
+        self.manifest = json.dumps(manifest)
+        self.save()
+
+    def get_download_url(self):
+        return reverse(
+            "django_oci:image_manifest",
+            kwargs={"name": self.repository.name, "reference": self.tag},
+        )
 
     # A container only gets a version when it's frozen, otherwise known by tag
     def get_uri(self):

@@ -52,6 +52,31 @@ class ImageBlobDownload(APIView):
         return storage.download_blob(name, digest)
 
 
+class ImageTags(APIView):
+    """Return a list of tags for an image."""
+
+    permission_classes = []
+    allowed_methods = ("GET",)
+
+    def get(self, request, *args, **kwargs):
+        """GET /v2/<name>/tags/list"""
+        name = kwargs.get("name")
+        number = request.GET.get("n")
+        tags = list(repository.image_set.values_list("tag", flat=True))
+        if number:
+            tags = tags[:number]
+
+        # Ensure the repository exists
+        try:
+            repository = Repository.objects.get(name=name)
+        except Repository.DoesNotExist:
+            raise Http404
+
+        # Ensure tags sorted in lexical order
+        data = {"name": repository.name, "tags": sorted(tags)}
+        return Response(status=200, data=data)
+
+
 class ImageBlobUpload(APIView):
     """An image push will receive a request to push, authenticate the user,
     and return an upload url (url is /v2/<name>/blobs/uploads/)
@@ -235,10 +260,52 @@ class ImageBlobUpload(APIView):
 
 
 class ImageManifest(APIView):
-    """GET an image manifest, the starting operation to pull a container image."""
+    """An Image Manifest holds the configuration and metadata about an image
+    GET: is to retrieve an existing image manifest
+    PUT: is to push a manifest
+    """
 
     permission_classes = []
-    allowed_methods = ("GET",)
+    allowed_methods = (
+        "GET",
+        "PUT",
+    )
+
+    def put(self, request, *args, **kwargs):
+        """PUT /v2/<name>/manifests/<reference>
+        https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pushing-manifests
+        """
+        # We likely can default to the v1 manifest, unless otherwise specified
+        content_type = request.META.get(
+            "CONTENT_TYPE", "application/vnd.oci.image.manifest.v1+json"
+        )
+        name = kwargs.get("name")
+        reference = kwargs.get("reference")
+
+        # Ensure the repository exists
+        try:
+            repository = Repository.objects.get(name=name)
+        except Repository.DoesNotExist:
+            raise Http404
+
+        # reference can be a tag (more likely) or digest
+        try:
+            image = repository.image_set.get(tag=reference)
+        except Repository.DoesNotExist:
+            try:
+                image = repository.image_set.get(version=reference)
+            except:
+                raise Http404
+
+        # The manifest is in the body, load to string
+        manifest = request.body.decode("utf-8")
+        image.manifest = manifest
+        image.save()
+
+        # TODO: do we want to parse or otherwise load the manifest?
+        # parse annotations
+        # validate layers?
+        return Response(status=201, headers={"Location": image.get_manifest_url()})
 
     def get(self, request, *args, **kwargs):
         """GET /v2/<name>/manifests/<reference>"""
@@ -264,29 +331,12 @@ class ImageManifest(APIView):
             except:
                 raise Http404
 
+        print(request.body)
+        print(image)
+
         # Create and validate a manifest
         manifest = Manifest()
         manifest.load()
 
-        # TODO have this created by opencontainers python
-        # {
-        #   "annotations": {
-        #      "com.example.key1": "value1",
-        #      "com.example.key2": "value2"
-        #   },
-        #   "config": {
-        #      "digest": "sha256:6f4e69a5ff18d92e7315e3ee31c62165ebf25bfa05cad05c0d09d8f412dae401",
-        #      "mediaType": "application/vnd.oci.image.config.v1+json",
-        #      "size": 452
-        #   },
-        #   "layers": [
-        #      {
-        #         "digest": "sha256:6f4e69a5ff18d92e7315e3ee31c62165ebf25bfa05cad05c0d09d8f412dae401",
-        #         "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
-        #         "size": 78343
-        #      }
-        #   ],
-        #   "schemaVersion": 2
-        # }
         headers = {"Docker-Distribution-API-Version": "registry/2.0"}
         return Response(manifest.to_dict())
