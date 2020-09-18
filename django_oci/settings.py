@@ -43,6 +43,8 @@ DEFAULTS = {
     "CACHE_DIR": None,
     # The number of seconds a session (upload request) is value
     "SESSION_EXPIRES_SECONDS": 10,
+    # Disable deletion of an image by tag or manifest (default is not disabled)
+    "DISABLE_TAG_MANIFEST_DELETE": False,
 }
 
 # The user can define a section for DJANGO_OCI in settings
@@ -58,6 +60,8 @@ STORAGE_BACKEND = oci.get("STORAGE_BACKEND", DEFAULTS["STORAGE_BACKEND"])
 DOMAIN_URL = oci.get("DOMAIN_URL", DEFAULTS["DOMAIN_URL"])
 MEDIA_ROOT = oci.get("MEDIA_ROOT", DEFAULTS["MEDIA_ROOT"])
 CACHE_DIR = oci.get("CACHE_DIR", DEFAULTS["CACHE_DIR"])
+DISABLE_TAG_MANIFEST_DELETE = oci.get("DISABLE_TAG_MANIFEST_DELETE", DEFAULTS["DISABLE_TAG_MANIFEST_DELETE"])
+
 SESSION_EXPIRES_SECONDS = oci.get(
     "SESSION_EXPIRES_SECONDS", DEFAULTS["SESSION_EXPIRES_SECONDS"]
 )

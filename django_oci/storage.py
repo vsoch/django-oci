@@ -16,7 +16,6 @@ limitations under the License.
 
 """
 
-from django.core.files.uploadedfile import SimpleUploadedFile, UploadedFile
 from django.http.response import Http404, HttpResponse
 from django_oci import settings
 from django.urls import reverse
@@ -31,42 +30,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class ChunkedFile(UploadedFile):
-    """A ChunkedFile has additional methods to write chunks"""
-
-    def __init__(
-        self, name, file=None, content=None, content_type="application/octet-stream"
-    ):
-        # If not given a file, this is the first call (and we create an in memory bytes)
-        if not file:
-            file = BytesIO(content or b"")
-            content_length = 0 if not content else len(content)
-
-        # Otherwise, we already have a file object to read
-        else:
-            content_length = file.size
-
-        super().__init__(file, name, content_type, content_length, None, None)
-
-    def update_chunk(self, body, content_start, content_end):
-        """Given some body, a start, and end (range), write the chunk to the fle"""
-
-        # We should start writing at next index, not over a previously written one
-        if self.file.size + 1 != content_start:
-
-            # If a chunk is uploaded out of order, the registry MUST respond with a 416 Requested Range Not Satisfiable code.
-            return 416
-
-        # Write the new content to file
-        with open(self.file.name, "wb") as fh:
-            fh.seek(content_start)
-            fh.write(body)
-
-        # Update the content size
-        self.file.size = self.file.size + (content_end - content_start)
-        return 202
-
-
 def get_storage():
     """Return the correct storage handler based on the key obtained from
     settings
@@ -79,21 +42,6 @@ def get_storage():
         )
         storage = "filesystem"
     return lookup[storage]()
-
-
-def get_upload_session(name):
-    """return the image object for an upload session"""
-    ids = parse_image_name(name)
-    tag = ids.get("tag", "latest")
-    collection = ids.get("url")
-
-    # Here we get the repository based on the name (get or create)
-    # TODO: will need to add owner
-    repository, _ = Repository.objects.get_or_create(name=collection)
-
-    # Get the image associated with the tag
-    image, _ = Image.objects.get_or_create(repository=repository, tag=tag)
-    return image
 
 
 # Storage backends for django_oci
@@ -120,93 +68,62 @@ class FileSystemStorage(StorageBase):
         except for the actual upload of the file, which is handled
         by a second PUT request to a session id.
         """
-        # Generate image for an upload session to return to the user
-        image = get_upload_session(name)
+        # Generate blob upload session to return to the user
+        version = "session-%s" % uuid.uuid4()
+        blob = Blob.objects.create(version=version)
+        blob.save()
 
         # Upon success, the response MUST have a code of 202 Accepted with a location header
-        return Response(status=202, headers={"Location": image.create_upload_session()})
+        return Response(status=202, headers={"Location": blob.create_upload_session()})
+
 
     def finish_blob(
         self,
-        image,
+        blob,
+        name,
         digest,
-        session_id=None,
-        body=None,
-        content_type=None,
-        content_start=None,
-        content_end=None,
     ):
-        """Finish a blob. Optionally, a body and content_type and start/end
-        bytes can be provided to write one more chunk.
+        """Finish a blob, meaning finalizing the digest and returning a download
+        url relative to the name provided.
         """
-        # The user wants to write one more chunk
-        if body and content_type and content_start and content_end and session_id:
-            try:
-                blob = self.write_blob_chunk(
-                    image=image,
-                    # We provide the session_id to use as a lookup
-                    digest=session_id,
-                    content_type=content_type,
-                    content_start=content_start,
-                    content_end=content_end,
-                    body=body,
-                )
-
-            except ValueError:
-                # Requested Range Not Satisfiable code (should be 0)
-                return Response(status=416)
-
-        # We just want to finalize the blob
-        else:
-            blob = Blob.objects.get(
-                digest=session_id, content_type=content_type, image=image
-            )
-
-        # Blob's true digest is updated to not be session_id
+        #TODO: in the case of a blob created from upload session, need to rename to be digest
         blob.digest = digest
         blob.save()
 
         # Location header must have <blob-location> being a pullable blob URL.
-        return Response(status=201, headers={"Location": blob.get_download_url()})
+        return Response(status=201, headers={"Location": blob.get_download_url(name)})
 
-    def create_blob(self, name, digest, body, content_type):
+    def create_blob(self, name, digest, body, content_type, blob=None):
         """Create an image blob from a monolithic post. We get the repository
         name along with the body for the blob and the digest.
 
         Parameters
         ==========
-        name (str): the name of the repository
+        name (str): the name of the repository eventually linked to
         body (bytes): the request body to write the container
         digest (str): the computed digest of the blob
         content_type (str): the blob content type
+        blob (models.Blob): a blob object (if already created)
         """
         # the <digest> MUST match the blob's digest (how to calculate)
         calculated_digest = self.calculate_digest(body)
         if calculated_digest != digest:
             return Response(status=400)
 
-        # Parse image name to get tag, etc.
-        ids = parse_image_name(name)
-        tag = ids.get("tag", "latest")
-        collection = ids.get("url")
+        # If we don't have the blob object yet
+        if not blob:
+            blob, created = Blob.objects.get_or_create(digest=calculated_digest)
 
-        # Here we get the repository based on the name (get or create)
-        # TODO: will need to add owner
-        repository, _ = Repository.objects.get_or_create(name=collection)
+        # Update blob body if doesn't exist
+        if not blob.datafile:
+            datafile = SimpleUploadedFile(
+                calculated_digest, body, content_type=content_type
+            )
+            blob.datafile = datafile
 
-        # Get the image associated with the tag
-        image, _ = Image.objects.get_or_create(repository=repository, tag=tag)
-
-        # Create the blob, and associate with image
-        blob, created = Blob.objects.get_or_create(
-            digest=calculated_digest, content_type=content_type, image=image
-        )
-
-        # Update blob body
-        datafile = SimpleUploadedFile(
-            calculated_digest, body, content_type=content_type
-        )
-        blob.datafile = datafile
+        # The digest is updated here if it was previously a session id
+        blob.content_type = content_type
+        blob.digest = digest
         blob.save()
 
         # If it's already existing, return Accepted header, otherwise alert created
@@ -215,97 +132,50 @@ class FileSystemStorage(StorageBase):
             status_code = 201
 
         # Location header must have <blob-location> being a pullable blob URL.
+        # Image name is not associated with blob, but must be provided
         return Response(
-            status=status_code, headers={"Location": blob.get_download_url()}
+            status=status_code, headers={"Location": blob.get_download_url(name)}
         )
 
     def upload_blob_chunk(
         self,
-        repository,
-        image,
+        blob,
+        name,
         body,
-        content_type,
         content_start,
         content_end,
         content_length,
-        session_id,
     ):
         """Upload a chunk of a blob
 
         Parameters
         ==========
-        repository (Repository): the repository
-        image (Image): the image to upload to
-        body (bytes): the request body to write the container
+        blob (Blob): the blob to upload to
+        body (bytes): the request body to write to the blob
         content_type (str): the blob content type
         content_start (int): the content starting index
         content_end (int): the content ending index
         content_length (int): the content length
         """
-        try:
-            blob = self.write_blob_chunk(
-                image=image,
-                digest=session_id,
-                content_type=content_type,
-                content_start=content_start,
-                content_end=content_end,
-                body=body,
-            )
-        except ValueError:
-            # Requested Range Not Satisfiable code (should be 0)
-            return Response(status=416)
+        status_code = blob.write_chunk(content_start=content_start, content_end=content_end, body=body)
 
         # If it's already existing, return Accepted header, otherwise alert created
-        if status_code != 202:
+        if status_code not in [201, 202]:
             return Response(status=status_code)
 
         # Generate an updated <location>
         return Response(
-            status=status_code, headers={"Location": blob.get_download_url()}
+            status=status_code, headers={"Location": blob.get_download_url(name)}
         )
 
-    def write_blob_chunk(
-        self, image, digest, content_type, content_start, content_end, body
-    ):
-        """Write a chunk to a blob. During a chunked upload, the digest corresponds
-        to the session_id
-        """
-        # Create the blob, and associate with image - we use the session_id as the digest until completion
-        blob, created = Blob.objects.get_or_create(
-            digest=digest, content_type=content_type, image=image
-        )
-
-        # If we don't yet have a blob.datafile, create a new one, assert that upload_range starts at 0
-        if not blob.datafile:
-
-            # The first request must start at 0
-            if content_start != 0:
-                raise ValueError(
-                    "The first request for a chunked upload must start at 0."
-                )
-
-            datafile = ChunkedFile(name=digest, content=body, content_type=content_type)
-
-        # Uploading another chunk for existing file
-        else:
-            datafile = ChunkedFile(
-                name=digest, file=blob.datafile.file, content_type=blob.content_type
-            )
-
-        # Update the chunk, get back the status code
-        status_code = datafile.update_chunk(body, content_start, content_end)
-
-        blob.datafile = datafile
-        blob.save()
-        return blob
 
     def download_blob(self, name, digest):
         """Given a blob repository name and digest, return response to stream download.
         The repository name is associated to the blob via the image.
         """
-        ids = parse_image_name(name)
+        # TODO: might need to retrieve blob first and then check that the image is associated
         try:
-            blob = Blob.objects.get(digest=digest, image__repository__name=ids["url"])
+            blob = Blob.objects.get(digest=digest, image__repository__name=name)
         except Blob.DoesNotExist:
             raise Http404
 

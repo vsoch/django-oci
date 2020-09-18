@@ -49,17 +49,17 @@ urlpatterns = [
     url(
         r"^%s/(?P<name>[a-z0-9\/]+(?:[._-][a-z0-9]+)*)/blobs/uploads/?$"
         % settings.URL_PREFIX,
-        views.ImageBlobUpload.as_view(),
+        views.BlobUpload.as_view(),
     ),
     path(
         "%s/<path:name>/blobs/download/<digest>/" % settings.URL_PREFIX,
-        views.ImageBlobDownload.as_view(),
-        name="image_blob_download",
+        views.BlobDownload.as_view(),
+        name="blob_download",
     ),
     path(
         "%s/<path:session_id>/blobs/upload/" % settings.URL_PREFIX,
-        views.ImageBlobUpload.as_view(),
-        name="image_blob_upload",
+        views.BlobUpload.as_view(),
+        name="blob_upload",
     ),
     path("", views.ChunkedUploadDemo.as_view(), name="chunked_upload"),
     path(

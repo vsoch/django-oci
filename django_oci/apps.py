@@ -22,3 +22,6 @@ from django.apps import AppConfig
 class DjangoOciConfig(AppConfig):
     name = "django_oci"
     verbose_name = "Opencontainer Distribution specification for Django"
+
+    def ready(self):
+        import django_oci.signals

@@ -19,7 +19,7 @@ limitations under the License.
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.http.response import Http404, HttpResponse
-from django_oci.models import Repository, Image
+from django_oci.models import Repository, Image, get_image_by_tag
 from django_oci import settings
 from django.middleware import cache
 
@@ -38,7 +38,7 @@ import os
 storage = get_storage()
 
 
-class ImageBlobDownload(APIView):
+class BlobDownload(APIView):
     """Given a GET request for a blob, stream the blob."""
 
     permission_classes = []
@@ -77,7 +77,8 @@ class ImageTags(APIView):
         return Response(status=200, data=data)
 
 
-class ImageBlobUpload(APIView):
+
+class BlobUpload(APIView):
     """An image push will receive a request to push, authenticate the user,
     and return an upload url (url is /v2/<name>/blobs/uploads/)
     """
@@ -86,7 +87,8 @@ class ImageBlobUpload(APIView):
     allowed_methods = ("POST", "PUT", "PATCH")
 
     def put(self, request, *args, **kwrags):
-        """A put request can happen in two scenarios. 1. after a POST request,
+        """PUT /v2/<name>/blobs/uploads/
+        A put request can happen in two scenarios. 1. after a POST request,
         and must include a session_id. The session id is created via the file
         system cache, and each one includes the request type, image id
         (associated with a tag), repository, and a randomly generated uuid.
@@ -96,6 +98,7 @@ class ImageBlobUpload(APIView):
         provided this case.
         """
         # These header attributes are shared by both scenarios
+        name = kwargs.get("name")
         session_id = kwargs.get("session_id")
         digest = request.GET.get("digest")
         content_length = int(request.META.get("CONTENT_LENGTH"))
@@ -119,32 +122,31 @@ class ImageBlobUpload(APIView):
         # Ensure it cannot be used again
         filecache.set(session_id, None, timeout=0)
 
-        # Break apart into repository name, image id, and uuid
-        _, collection, image_id, _ = session_id.split("/")
+        # Break apart into blob id, and session uuid (version)
+        _, blob_id, version = session_id.split("/")
         try:
-            repository = Repository.objects.get(name=collection)
-            image = Image.objects.get(id=image_id)
-        except (Repository.DoesNotExist, Image.DoesNotExist):
+            blob = Blob.objects.get(id=blob_id, version=version)
+        except (Blob.DoesNotExist):
             return Response(status=404)
 
         # Scenario 1: a single PUT request
         if not content_range and request.body:
 
-            # Now process the PUT request to the file!
+            # Now process the PUT request to the file! Provide the blob to update
             return storage.create_blob(
-                name=repository.name,
+                blob=blob,
+                name=name,
                 body=request.body,
                 digest=digest,
                 content_type=content_type,
             )
 
         # Scenario 2: a PUT to end a chunked upload session, no final chunk
-        # TODO how do we ensure that the session_id gets us the correct blob?
         elif not request.body:
             return storage.finish_blob(
-                name=repository.name,
+                blob=blob,
+                name=name,
                 digest=digest,
-                session_id=session_id,
             )
 
         # Scenario 3: a PUT to end a chunked upload session with a final chunk
@@ -157,17 +159,26 @@ class ImageBlobUpload(APIView):
         except ValueError:
             return Response(status=400)
 
-        # The session_id is used to find the blob
+        # Write the final chunk and finish the session
+        status_code = blob.write_chunk(content_start=content_start, content_end=content_end, body=request.body)
+
+        # If it's already existing, return Accepted header, otherwise alert created
+        if status_code != 202:
+            return Response(status=status_code)
+
         return storage.finish_blob(
-            image=image,
+            blob=blob,
+            name=name,
             digest=digest,
         )
+
 
     def patch(self, request, *args, **kwargs):
         """a patch request is done after a POST with content-length 0 to indicate
         a chunked upload request.
         POST /v2/<name>/blobs/uploads/
         """
+        name = kwargs.get("name")
         session_id = kwargs.get("session_id")
         content_length = int(request.META.get("CONTENT_LENGTH"))
         content_range = int(request.META.get("CONTENT_RANGE"))
@@ -196,32 +207,32 @@ class ImageBlobUpload(APIView):
         if not filecache.get(session_id):
             return Response(status=400)
 
-        # Break apart into repository name, image id, and uuid
-        _, collection, image_id, _ = session_id.split("/")
+        # Break apart into blob id and session uuid
+        _, blob_id, version = session_id.split("/")
         try:
-            repository = Repository.objects.get(name=collection)
-            image = Image.objects.get(id=image_id)
-        except (Repository.DoesNotExist, Image.DoesNotExist):
+            blob = Blob.objects.get(id=blob_id, version=version)
+        except Blob.DoesNotExist:
             return Response(status=404)
+
+        # Update the blob content_type TODO: There should be some check
+        # to ensure that a next chunk content type is not different from that
+        # already defined
+        blob.content_type = content_type
 
         # Now process the PATCH request to upload the chunk
         return storage.upload_blob_chunk(
-            repository=repository,
-            image=image,
-            session_id=session_id,
+            blob=blob,
+            name=name,
             body=request.body,
-            content_type=content_type,
             content_start=content_start,
             content_end=content_end,
             content_length=content_length,
         )
 
-        # TODO: close the session
-        # Close the  session (PUT)
-
     def post(self, request, *args, **kwargs):
         """POST /v2/<name>/blobs/uploads/"""
 
+        # the name is only used to validate the user has permission to upload
         name = kwargs.get("name")
 
         # For check media type and content length (if needed)
@@ -246,6 +257,7 @@ class ImageBlobUpload(APIView):
                 return Response(status=400)
 
             # The storage.create_blob handles creation of blob with body (no second request required)
+            # We only pass the name to return it with the blob's download url, there is no association
             return storage.create_blob(
                 name=name, body=request.body, digest=digest, content_type=content_type
             )
@@ -269,7 +281,30 @@ class ImageManifest(APIView):
     allowed_methods = (
         "GET",
         "PUT",
+        "DELETE",
     )
+
+    def delete(self, request, *args, **kwargs):
+        """DELETE /v2/<name>/manifests/<tag>"""
+
+        # A registry must globally disable or enable both
+        if not settings.DISABLE_TAG_MANIFEST_DELETE:
+            return Response(status=405)
+
+        name = kwargs.get("name")
+        reference = kwargs.get("reference")
+
+        # Retrieve the image, return of None indicates not found
+        if not (image =: get_image_by_tag(name, reference)):
+            raise Http404
+        
+        # Delete the image
+        # TODO: need to test case that image has multiple tags
+        image.delete()
+
+        # Upon success, the registry MUST respond with a 202 Accepted code. 
+        return Response(status=202)
+
 
     def put(self, request, *args, **kwargs):
         """PUT /v2/<name>/manifests/<reference>
@@ -281,26 +316,16 @@ class ImageManifest(APIView):
         )
         name = kwargs.get("name")
         reference = kwargs.get("reference")
-
-        # Ensure the repository exists
-        try:
-            repository = Repository.objects.get(name=name)
-        except Repository.DoesNotExist:
+        if not (image =: get_image_by_tag(name, reference)):
             raise Http404
-
-        # reference can be a tag (more likely) or digest
-        try:
-            image = repository.image_set.get(tag=reference)
-        except Repository.DoesNotExist:
-            try:
-                image = repository.image_set.get(version=reference)
-            except:
-                raise Http404
 
         # The manifest is in the body, load to string
         manifest = request.body.decode("utf-8")
         image.manifest = manifest
         image.save()
+
+        # Load the manifest to get blob associations
+        manifest = image.get_manifest()
 
         # TODO: do we want to parse or otherwise load the manifest?
         # parse annotations
@@ -313,23 +338,12 @@ class ImageManifest(APIView):
         name = kwargs.get("name")
         reference = kwargs.get("reference")
 
+        if not (image =: get_image_by_tag(name, reference)):
+            raise Http404
+
         # TODO check for header and see if we can filter down to types
         # The client SHOULD include an Accept header indicating which manifest content types it supports. In a successful response, the Content-Type header will indicate which manifest type is being returned.
 
-        # Does the repository exist?
-        try:
-            repo = Repository.objects.get(name=name)
-        except Repository.DoesNotExist:
-            raise Http404
-
-        # Does the reference (tag or version) exist?
-        try:
-            image = repo.image_set.get(tag=reference)
-        except Repository.DoesNotExist:
-            try:
-                image = repo.image_set.get(version=reference)
-            except:
-                raise Http404
 
         print(request.body)
         print(image)
