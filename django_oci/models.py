@@ -51,14 +51,14 @@ def get_upload_folder(instance, filename):
 
 def get_image_by_tag(name, reference):
     """given the name of a repository and a reference, look up the image
-       based on the reference. By default we use the reference to look for
-       a tag or digest. A return of None indicates that the image is not found, 
-       and the view should raise Http404
+    based on the reference. By default we use the reference to look for
+    a tag or digest. A return of None indicates that the image is not found,
+    and the view should raise Http404
 
-       Parameters
-       ==========
-       name (str): the name of the repository to lookup
-       reference (str): an image tag or version
+    Parameters
+    ==========
+    name (str): the name of the repository to lookup
+    reference (str): an image tag or version
     """
     if not name or not reference:
         return None
@@ -157,7 +157,8 @@ class Blob(models.Model):
         if self.remotefile is not None:
             return self.remotefile
         return settings.DOMAIN_URL.strip("/") + reverse(
-            "django_oci:blob_download", kwargs={"digest": self.digest, "name": name},
+            "django_oci:blob_download",
+            kwargs={"digest": self.digest, "name": name},
         )
 
     def write_chunk(self, content_start, content_end, body):
@@ -172,12 +173,16 @@ class Blob(models.Model):
                 raise ValueError(
                     "The first request for a chunked upload must start at 0."
                 )
-            datafile = ChunkedFile(name=self.digest, content=body, content_type=self.content_type)
+            datafile = ChunkedFile(
+                name=self.digest, content=body, content_type=self.content_type
+            )
 
         # Uploading another chunk for existing file
         else:
             datafile = ChunkedFile(
-                name=self.digest, file=self.datafile.file, content_type=self.content_type
+                name=self.digest,
+                file=self.datafile.file,
+                content_type=self.content_type,
             )
 
         # Update the chunk, get back the status code
@@ -185,7 +190,6 @@ class Blob(models.Model):
         self.datafile = datafile
         self.save()
         return status_code
-
 
     def create_upload_session(self):
         """A function to create an upload session for a particular blob.
@@ -197,9 +201,7 @@ class Blob(models.Model):
 
         # Expires in default 10 seconds
         filecache.set(session_id, 1, timeout=settings.SESSION_EXPIRES_SECONDS)
-        return reverse(
-            "django_oci:blob_upload", kwargs={"session_id": session_id}
-        )
+        return reverse("django_oci:blob_upload", kwargs={"session_id": session_id})
 
     def get_abspath(self):
         return os.path.join(settings.MEDIA_ROOT, self.datafile.name)
@@ -210,9 +212,10 @@ class Blob(models.Model):
 
 class Image(models.Model):
     """An image (manifest) holds a set of layers (blobs) for a repository.
-       Blobs can be shared between manifests, and are deleted if they are
-       no longer referenced.
+    Blobs can be shared between manifests, and are deleted if they are
+    no longer referenced.
     """
+
     add_date = models.DateTimeField("date manifest added", auto_now=True)
 
     # When a repository is deleted, so are the manifests
@@ -224,7 +227,7 @@ class Image(models.Model):
     )
 
     # Blobs are added at the creation of the manifest (can be shared based on hash)
-    blobs = models.ManyToManyField(Blob, blank=True, null=True)
+    blobs = models.ManyToManyField(Blob)
 
     # The text of the manifest (added at the end)
     manifest = models.TextField(null=False, blank=False, default="{}")
@@ -275,26 +278,26 @@ class Image(models.Model):
         unique_together = (
             (
                 "repository",
-                "tag",
+                "version",
             ),
         )
 
 
 class Tag(models.Model):
-    """A tag is a reference for one or more manifests
-    """
+    """A tag is a reference for one or more manifests"""
+
     name = models.CharField(max_length=250, null=False, blank=False)
     image = models.ForeignKey(
         Image,
         null=False,
         blank=False,
-
         # When a manifest is deleted, any associated tags are too
         on_delete=models.CASCADE,
     )
 
+
 class Annotation(models.Model):
-    """An annotation is a key/value pair to describe an image. 
+    """An annotation is a key/value pair to describe an image.
     We will want to parse these from an image manifest (eventually)
     """
 
@@ -316,7 +319,7 @@ class Annotation(models.Model):
         unique_together = (("key", "value"),)
 
 
-#def delete_blobs(sender, instance, **kwargs):
+# def delete_blobs(sender, instance, **kwargs):
 #    for image in instance.image_set.all():
 #        if hasattr(image, "datafile"):
 #            count = Image.objects.filter(image__datafile=image.datafile).count()
@@ -332,4 +335,4 @@ from chunked_upload.models import ChunkedUpload
 # by inheriting "chunked_upload.models.AbstractChunkedUpload" class
 MyChunkedUpload = ChunkedUpload
 
-#post_delete.connect(delete_blobs, sender=Image)
+# post_delete.connect(delete_blobs, sender=Image)

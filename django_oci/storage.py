@@ -76,7 +76,6 @@ class FileSystemStorage(StorageBase):
         # Upon success, the response MUST have a code of 202 Accepted with a location header
         return Response(status=202, headers={"Location": blob.create_upload_session()})
 
-
     def finish_blob(
         self,
         blob,
@@ -86,7 +85,7 @@ class FileSystemStorage(StorageBase):
         """Finish a blob, meaning finalizing the digest and returning a download
         url relative to the name provided.
         """
-        #TODO: in the case of a blob created from upload session, need to rename to be digest
+        # TODO: in the case of a blob created from upload session, need to rename to be digest
         blob.digest = digest
         blob.save()
 
@@ -157,7 +156,9 @@ class FileSystemStorage(StorageBase):
         content_end (int): the content ending index
         content_length (int): the content length
         """
-        status_code = blob.write_chunk(content_start=content_start, content_end=content_end, body=body)
+        status_code = blob.write_chunk(
+            content_start=content_start, content_end=content_end, body=body
+        )
 
         # If it's already existing, return Accepted header, otherwise alert created
         if status_code not in [201, 202]:
@@ -167,7 +168,6 @@ class FileSystemStorage(StorageBase):
         return Response(
             status=status_code, headers={"Location": blob.get_download_url(name)}
         )
-
 
     def download_blob(self, name, digest):
         """Given a blob repository name and digest, return response to stream download.
@@ -187,3 +187,7 @@ class FileSystemStorage(StorageBase):
                     "Content-Disposition"
                 ] = "inline; filename=" + os.path.basename(file_path)
                 return response
+
+
+# Load storage on application init
+storage = get_storage()
