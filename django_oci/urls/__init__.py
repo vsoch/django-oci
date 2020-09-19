@@ -31,7 +31,7 @@ urlpatterns = [
     url(
         r"^%s/?$" % settings.URL_PREFIX,
         views.APIVersionCheck.as_view(),
-        name="api-version-check",
+        name="api_version_check",
     ),
     url(
         r"^%s/(?P<name>[a-z0-9\/]+(?:[._-][a-z0-9]+)*)/tags/list/?$"
@@ -50,6 +50,7 @@ urlpatterns = [
         r"^%s/(?P<name>[a-z0-9\/]+(?:[._-][a-z0-9]+)*)/blobs/uploads/?$"
         % settings.URL_PREFIX,
         views.BlobUpload.as_view(),
+        name="blob_upload",
     ),
     path(
         "%s/<path:name>/blobs/download/<digest>/" % settings.URL_PREFIX,

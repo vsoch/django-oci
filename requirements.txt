@@ -1,0 +1,4 @@
+djangorestframework
+opencontainers
+django-chunked-upload==2.0.0
+django-extensions

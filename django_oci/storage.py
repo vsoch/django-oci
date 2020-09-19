@@ -18,7 +18,8 @@ limitations under the License.
 
 from django.http.response import Http404, HttpResponse
 from django_oci import settings
-from django.urls import reverse
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django_oci.files import ChunkedFile
 from django_oci.models import Blob, Image, Repository
 from django_oci.utils import parse_image_name
 from rest_framework.response import Response
@@ -26,6 +27,7 @@ from rest_framework.response import Response
 from io import BytesIO
 import hashlib
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +64,7 @@ class StorageBase:
 
 
 class FileSystemStorage(StorageBase):
-    def create_blob_request(self, name):
+    def create_blob_request(self, repository):
         """A create blob request is intended to be done first with a name,
         and content type, and we do all steps of the creation
         except for the actual upload of the file, which is handled
@@ -70,7 +72,7 @@ class FileSystemStorage(StorageBase):
         """
         # Generate blob upload session to return to the user
         version = "session-%s" % uuid.uuid4()
-        blob = Blob.objects.create(version=version)
+        blob = Blob.objects.create(digest=version, repository=repository)
         blob.save()
 
         # Upon success, the response MUST have a code of 202 Accepted with a location header
@@ -79,7 +81,6 @@ class FileSystemStorage(StorageBase):
     def finish_blob(
         self,
         blob,
-        name,
         digest,
     ):
         """Finish a blob, meaning finalizing the digest and returning a download
@@ -90,15 +91,14 @@ class FileSystemStorage(StorageBase):
         blob.save()
 
         # Location header must have <blob-location> being a pullable blob URL.
-        return Response(status=201, headers={"Location": blob.get_download_url(name)})
+        return Response(status=201, headers={"Location": blob.get_download_url()})
 
-    def create_blob(self, name, digest, body, content_type, blob=None):
+    def create_blob(self, digest, body, content_type, blob=None, repository=None):
         """Create an image blob from a monolithic post. We get the repository
         name along with the body for the blob and the digest.
 
         Parameters
         ==========
-        name (str): the name of the repository eventually linked to
         body (bytes): the request body to write the container
         digest (str): the computed digest of the blob
         content_type (str): the blob content type
@@ -110,8 +110,11 @@ class FileSystemStorage(StorageBase):
             return Response(status=400)
 
         # If we don't have the blob object yet
+        created = False
         if not blob:
-            blob, created = Blob.objects.get_or_create(digest=calculated_digest)
+            blob, created = Blob.objects.get_or_create(
+                digest=calculated_digest, repository=repository
+            )
 
         # Update blob body if doesn't exist
         if not blob.datafile:
@@ -131,15 +134,13 @@ class FileSystemStorage(StorageBase):
             status_code = 201
 
         # Location header must have <blob-location> being a pullable blob URL.
-        # Image name is not associated with blob, but must be provided
         return Response(
-            status=status_code, headers={"Location": blob.get_download_url(name)}
+            status=status_code, headers={"Location": blob.get_download_url()}
         )
 
     def upload_blob_chunk(
         self,
         blob,
-        name,
         body,
         content_start,
         content_end,
@@ -156,8 +157,8 @@ class FileSystemStorage(StorageBase):
         content_end (int): the content ending index
         content_length (int): the content length
         """
-        status_code = blob.write_chunk(
-            content_start=content_start, content_end=content_end, body=body
+        status_code = self.write_chunk(
+            blob=blob, content_start=content_start, content_end=content_end, body=body
         )
 
         # If it's already existing, return Accepted header, otherwise alert created
@@ -166,8 +167,38 @@ class FileSystemStorage(StorageBase):
 
         # Generate an updated <location>
         return Response(
-            status=status_code, headers={"Location": blob.get_download_url(name)}
+            status=status_code, headers={"Location": blob.get_download_url()}
         )
+
+    def write_chunk(self, blob, content_start, content_end, body):
+        """Write a chunk to a blob. During a chunked upload, the digest corresponds
+        to the session_id, and is saved temporarily. It's named on upload finish.
+        """
+        # If we don't yet have a blob.datafile, create a new one, assert that upload_range starts at 0
+        if not blob.datafile:
+
+            # The first request must start at 0
+            if content_start != 0:
+                raise ValueError(
+                    "The first request for a chunked upload must start at 0."
+                )
+            datafile = ChunkedFile(
+                name=blob.digest, content=body, content_type=blob.content_type
+            )
+
+        # Uploading another chunk for existing file
+        else:
+            datafile = ChunkedFile(
+                name=blob.digest,
+                file=blob.datafile.file,
+                content_type=blob.content_type,
+            )
+
+        # Update the chunk, get back the status code
+        status_code = datafile.update_chunk(body, content_start, content_end)
+        blob.datafile = datafile
+        blob.save()
+        return status_code
 
     def download_blob(self, name, digest):
         """Given a blob repository name and digest, return response to stream download.
@@ -175,7 +206,7 @@ class FileSystemStorage(StorageBase):
         """
         # TODO: might need to retrieve blob first and then check that the image is associated
         try:
-            blob = Blob.objects.get(digest=digest, image__repository__name=name)
+            blob = Blob.objects.get(digest=digest, repository__name=name)
         except Blob.DoesNotExist:
             raise Http404
 

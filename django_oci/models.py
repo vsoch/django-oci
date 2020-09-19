@@ -17,7 +17,6 @@ limitations under the License.
 """
 
 from django_oci import settings
-from django_oci.files import ChunkedFile
 from django.urls import reverse
 from django.db import models
 from django.contrib.auth.models import User
@@ -42,7 +41,8 @@ def get_privacy_default():
 
 def get_upload_folder(instance, filename):
     """a helper function to upload a blob to local storage"""
-    blobs_home = os.path.join(settings.MEDIA_ROOT, "blobs")
+    repository_name = instance.repository.name
+    blobs_home = os.path.join(settings.MEDIA_ROOT, "blobs", repository_name)
     if not os.path.exists(blobs_home):
         os.makedirs(blobs_home)
 
@@ -146,50 +146,25 @@ class Blob(models.Model):
     datafile = models.FileField(upload_to=get_upload_folder, max_length=255)
     remotefile = models.CharField(max_length=500, null=True, blank=True)
 
+    # When a repository is deleted, so are the blobs
+    repository = models.ForeignKey(
+        Repository,
+        null=False,
+        blank=False,
+        on_delete=models.CASCADE,
+    )
+
     def get_label(self):
         return "blob"
 
-    def get_download_url(self, name):
-        """Although blobs are not associated with repositories, we still must
-        provide a name to meet the OCI specification. Likely we want to validate
-        that the blob is associated to a repository via a manifest.
-        """
+    def get_download_url(self):
+        """Blobs are loosely associated with repositories."""
         if self.remotefile is not None:
             return self.remotefile
         return settings.DOMAIN_URL.strip("/") + reverse(
             "django_oci:blob_download",
-            kwargs={"digest": self.digest, "name": name},
+            kwargs={"digest": self.digest, "name": self.repository.name},
         )
-
-    def write_chunk(self, content_start, content_end, body):
-        """Write a chunk to a blob. During a chunked upload, the digest corresponds
-        to the session_id, and is saved temporarily. It's named on upload finish.
-        """
-        # If we don't yet have a blob.datafile, create a new one, assert that upload_range starts at 0
-        if not self.datafile:
-
-            # The first request must start at 0
-            if content_start != 0:
-                raise ValueError(
-                    "The first request for a chunked upload must start at 0."
-                )
-            datafile = ChunkedFile(
-                name=self.digest, content=body, content_type=self.content_type
-            )
-
-        # Uploading another chunk for existing file
-        else:
-            datafile = ChunkedFile(
-                name=self.digest,
-                file=self.datafile.file,
-                content_type=self.content_type,
-            )
-
-        # Update the chunk, get back the status code
-        status_code = datafile.update_chunk(body, content_start, content_end)
-        self.datafile = datafile
-        self.save()
-        return status_code
 
     def create_upload_session(self):
         """A function to create an upload session for a particular blob.
@@ -197,7 +172,7 @@ class Blob(models.Model):
         """
         # Get the django oci upload cache, and generate an expiring session upload id
         filecache = cache.caches["django_oci_upload"]
-        session_id = "put/%s/%s" % (self.id, self.version)
+        session_id = "put/%s/%s" % (self.id, self.digest)
 
         # Expires in default 10 seconds
         filecache.set(session_id, 1, timeout=settings.SESSION_EXPIRES_SECONDS)

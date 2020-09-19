@@ -18,7 +18,7 @@ limitations under the License.
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from django_oci.models import Blob
+from django_oci.models import Blob, Repository
 from django_oci import settings
 from django_oci.storage import storage
 from django.middleware import cache
@@ -55,7 +55,7 @@ class BlobUpload(APIView):
     permission_classes = []
     allowed_methods = ("POST", "PUT", "PATCH")
 
-    def put(self, request, *args, **kwrags):
+    def put(self, request, *args, **kwargs):
         """PUT /v2/<name>/blobs/uploads/
         A put request can happen in two scenarios. 1. after a POST request,
         and must include a session_id. The session id is created via the file
@@ -67,7 +67,6 @@ class BlobUpload(APIView):
         provided this case.
         """
         # These header attributes are shared by both scenarios
-        name = kwargs.get("name")
         session_id = kwargs.get("session_id")
         digest = request.GET.get("digest")
         content_length = int(request.META.get("CONTENT_LENGTH"))
@@ -94,7 +93,7 @@ class BlobUpload(APIView):
         # Break apart into blob id, and session uuid (version)
         _, blob_id, version = session_id.split("/")
         try:
-            blob = Blob.objects.get(id=blob_id, version=version)
+            blob = Blob.objects.get(id=blob_id, digest=version)
         except (Blob.DoesNotExist):
             return Response(status=404)
 
@@ -104,7 +103,6 @@ class BlobUpload(APIView):
             # Now process the PUT request to the file! Provide the blob to update
             return storage.create_blob(
                 blob=blob,
-                name=name,
                 body=request.body,
                 digest=digest,
                 content_type=content_type,
@@ -114,7 +112,6 @@ class BlobUpload(APIView):
         elif not request.body:
             return storage.finish_blob(
                 blob=blob,
-                name=name,
                 digest=digest,
             )
 
@@ -129,8 +126,11 @@ class BlobUpload(APIView):
             return Response(status=400)
 
         # Write the final chunk and finish the session
-        status_code = blob.write_chunk(
-            content_start=content_start, content_end=content_end, body=request.body
+        status_code = storage.write_chunk(
+            blob=blob,
+            content_start=content_start,
+            content_end=content_end,
+            body=request.body,
         )
 
         # If it's already existing, return Accepted header, otherwise alert created
@@ -146,7 +146,6 @@ class BlobUpload(APIView):
     def patch(self, request, *args, **kwargs):
         """a patch request is done after a POST with content-length 0 to indicate
         a chunked upload request.
-        POST /v2/<name>/blobs/uploads/
         """
         name = kwargs.get("name")
         session_id = kwargs.get("session_id")
@@ -184,6 +183,10 @@ class BlobUpload(APIView):
         except Blob.DoesNotExist:
             return Response(status=404)
 
+        # Ensure that the blob repository name is correct
+        if not blob.repository.name == name:
+            return Response(status=404)
+
         # Update the blob content_type TODO: There should be some check
         # to ensure that a next chunk content type is not different from that
         # already defined
@@ -192,7 +195,6 @@ class BlobUpload(APIView):
         # Now process the PATCH request to upload the chunk
         return storage.upload_blob_chunk(
             blob=blob,
-            name=name,
             body=request.body,
             content_start=content_start,
             content_end=content_end,
@@ -206,16 +208,19 @@ class BlobUpload(APIView):
         name = kwargs.get("name")
 
         # For check media type and content length (if needed)
-        content_length = int(request.META.get("CONTENT_LENGTH"))
-        content_type = request.META.get("CONTENT_TYPE")
+        content_length = int(request.META.get("CONTENT_LENGTH", 0))
+        content_type = request.META.get("CONTENT_TYPE", settings.DEFAULT_CONTENT_TYPE)
 
         # If no content length, tell the user it's required
-        if not content_length:
+        if content_length in [None, ""]:
             return Response(status=411)
 
         # Unsupported media type
         if content_type not in settings.CONTENT_TYPES:
             return Response(status=415)
+
+        # Get or create repository (TODO:will need to validate user permissions here)
+        repository, created = Repository.objects.get_or_create(name=name)
 
         # Case 1: POST provided with digest == single monolithic upload
         # /v2/<name>/blobs/uploads/?digest=<digest>
@@ -229,13 +234,16 @@ class BlobUpload(APIView):
             # The storage.create_blob handles creation of blob with body (no second request required)
             # We only pass the name to return it with the blob's download url, there is no association
             return storage.create_blob(
-                name=name, body=request.body, digest=digest, content_type=content_type
+                body=request.body,
+                digest=digest,
+                content_type=content_type,
+                repository=repository,
             )
 
         # Case 2; Content type length 0 indicates chunked upload
         elif content_length != 0:
-            return storage.create_blob_request(name=name)
+            return storage.create_blob_request(repository)
 
         # Case 3: POST without digest == single monolithic with POST then PUT
         # returns a session location to upload to with PUT
-        return storage.create_blob_request(name=name)
+        return storage.create_blob_request(repository)
