@@ -38,9 +38,17 @@ urlpatterns = [
         views.ImageTags.as_view(),
         name="image_tags",
     ),
+    # This is for a full digest reference
     # https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pulling-an-image-manifest
     url(
         r"^%s/(?P<name>[a-z0-9\/]+(?:[._-][a-z0-9]+)*)/manifests/(?P<reference>[A-Za-z0-9_+.-]+:[A-Fa-f0-9]+)/?$"
+        % settings.URL_PREFIX,
+        views.ImageManifest.as_view(),
+        name="image_manifest",
+    ),
+    # This is for a tag reference
+    url(
+        r"^%s/(?P<name>[a-z0-9\/]+(?:[._-][a-z0-9]+)*)/manifests/(?P<tag>[A-Za-z0-9_+.-]+)/?$"
         % settings.URL_PREFIX,
         views.ImageManifest.as_view(),
         name="image_manifest",

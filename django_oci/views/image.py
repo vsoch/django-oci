@@ -101,9 +101,8 @@ class ImageManifest(APIView):
         )
         name = kwargs.get("name")
         reference = kwargs.get("reference")
-        image = get_image_by_tag(name, reference)
-        if not image:
-            raise Http404
+        tag = kwargs.get("tag")
+        image = get_image_by_tag(name, reference, tag, create=True)
 
         # The manifest is in the body, load to string
         manifest = request.body.decode("utf-8")
