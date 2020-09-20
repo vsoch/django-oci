@@ -94,7 +94,7 @@ class BlobUpload(APIView):
         _, blob_id, version = session_id.split("/")
         try:
             blob = Blob.objects.get(id=blob_id, digest=version)
-        except (Blob.DoesNotExist):
+        except Blob.DoesNotExist:
             return Response(status=404)
 
         # Scenario 1: a single PUT request

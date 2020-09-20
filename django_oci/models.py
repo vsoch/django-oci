@@ -183,6 +183,12 @@ class Blob(models.Model):
 
     class Meta:
         app_label = "django_oci"
+        unique_together = (
+            (
+                "repository",
+                "digest",
+            ),
+        )
 
 
 class Image(models.Model):
@@ -224,7 +230,7 @@ class Image(models.Model):
             kwargs={"name": self.repository.name, "reference": self.tag.name},
         )
 
-    # A container only gets a version when it's frozen, otherwise known by tag
+    # A container only gets a version when fit's frozen, otherwise known by tag
     def get_uri(self):
         return "%s:%s" % (self.repository.name, self.tag)
 

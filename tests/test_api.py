@@ -11,6 +11,8 @@ from rest_framework.test import APITestCase
 from django.test import TestCase
 from django.test import Client
 
+from time import sleep
+import subprocess
 import requests
 import threading
 import hashlib
@@ -27,6 +29,13 @@ def calculate_digest(blob):
 
 
 class APIBaseTests(APITestCase):
+    def setUp(self):
+        self.process = subprocess.Popen(["python", "manage.py", "runserver"])
+        sleep(2)
+
+    def tearDown(self):
+        os.kill(self.process.pid, 9)
+
     def test_api_version_check(self):
         """
         GET of /v2 should return a 200 response

@@ -16,6 +16,7 @@ limitations under the License.
 
 """
 
+from django.db import IntegrityError
 from django.http.response import Http404, HttpResponse
 from django_oci import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -125,8 +126,15 @@ class FileSystemStorage(StorageBase):
 
         # The digest is updated here if it was previously a session id
         blob.content_type = content_type
-        blob.digest = digest
-        blob.save()
+
+        # If the blob digest is a session
+        try:
+            existing_blob = Blob.objects.get(repository=blob.repository, digest=digest)
+            blob.delete()
+            blob = existing_blob
+        except:
+            blob.digest = digest
+            blob.save()
 
         # If it's already existing, return Accepted header, otherwise alert created
         status_code = 202
