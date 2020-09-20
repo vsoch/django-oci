@@ -45,4 +45,4 @@ jobs:
           pip install -r tests/requirements.txt
           python manage.py makemigrations
           python manage.py migrate
-          python mange.py test
+          python manage.py test
