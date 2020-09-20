@@ -1,3 +1,4 @@
 django
 djangorestframework
 opencontainers
+requests

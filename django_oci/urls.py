@@ -19,7 +19,6 @@ limitations under the License.
 from django.urls import reverse
 from django.conf.urls import url
 from django.urls import path
-from .routers import urlpatterns as router_patterns
 from django_oci import views
 from django_oci import settings
 
@@ -62,42 +61,4 @@ urlpatterns = [
         views.BlobUpload.as_view(),
         name="blob_upload",
     ),
-    path("", views.ChunkedUploadDemo.as_view(), name="chunked_upload"),
-    path(
-        "api/chunked_upload_complete/",
-        views.MyChunkedUploadCompleteView.as_view(),
-        name="api_chunked_upload_complete",
-    ),
-    path(
-        "api/chunked_upload/",
-        views.MyChunkedUploadView.as_view(),
-        name="api_chunked_upload",
-    ),
-] + router_patterns
-
-#    url(
-#        r"^container/search/collection/(?P<collection>.+?)/name/(?P<name>.+?)/?$",
-#        ContainerSearch.as_view(),
-#    ),
-#    url(
-#        r"^container/search/name/(?P<name>.+?)/tag/(?P<tag>.+?)/?$",
-#        ContainerSearch.as_view(),
-#    ),
-#    url(r"^container/search/name/(?P<name>.+?)/?$", ContainerSearch.as_view()),
-#    url(
-#        r"^container/(?P<collection>.+?)/(?P<name>.+?):(?P<tag>.+?)@(?P<version>.+?)/?$",
-#        ContainerDetailByName.as_view(),
-#    ),
-#    url(
-#        r"^container/(?P<collection>.+?)/(?P<name>.+?)@(?P<version>.+?)/?$",
-#       ContainerDetailByName.as_view(),
-#    ),
-#    url(
-#        r"^container/(?P<collection>.+?)/(?P<name>.+?):(?P<tag>.+?)/?$",
-#        ContainerDetailByName.as_view(),
-#    ),
-#    url(
-#        r"^container/(?P<collection>.+?)/(?P<name>.+?)/?$",
-#        ContainerDetailByName.as_view(),
-#    ),
-# ] + router_patterns
+]
