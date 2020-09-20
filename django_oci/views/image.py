@@ -41,15 +41,19 @@ class ImageTags(APIView):
         """GET /v2/<name>/tags/list"""
         name = kwargs.get("name")
         number = request.GET.get("n")
-        tags = list(repository.image_set.values_list("tag", flat=True))
-        if number:
-            tags = tags[:number]
 
-        # Ensure the repository exists
         try:
             repository = Repository.objects.get(name=name)
         except Repository.DoesNotExist:
             raise Http404
+
+        tags = [
+            x
+            for x in list(repository.image_set.values_list("tag__name", flat=True))
+            if x
+        ]
+        if number:
+            tags = tags[:number]
 
         # Ensure tags sorted in lexical order
         data = {"name": repository.name, "tags": sorted(tags)}
@@ -73,20 +77,26 @@ class ImageManifest(APIView):
         """DELETE /v2/<name>/manifests/<tag>"""
 
         # A registry must globally disable or enable both
-        if not settings.DISABLE_TAG_MANIFEST_DELETE:
+        if settings.DISABLE_TAG_MANIFEST_DELETE:
             return Response(status=405)
 
         name = kwargs.get("name")
         reference = kwargs.get("reference")
+        tag = kwargs.get("tag")
 
         # Retrieve the image, return of None indicates not found
-        image = get_image_by_tag(name, reference)
+        image = get_image_by_tag(name, reference=reference, tag=tag, create=False)
         if not image:
             raise Http404
 
-        # Delete the image
-        # TODO: need to test case that image has multiple tags
-        image.delete()
+        # Delete the image tag
+        if tag:
+            tag = image.tag_set.filter(name=tag)
+            tag.delete()
+
+        # Delete a manifest
+        elif reference:
+            image.delete()
 
         # Upon success, the registry MUST respond with a 202 Accepted code.
         return Response(status=202)
@@ -106,8 +116,7 @@ class ImageManifest(APIView):
 
         # The manifest is in the body, load to string
         manifest = request.body.decode("utf-8")
-        image.manifest = manifest
-        image.save()
+        image.save_manifest(manifest)
 
         # Load the manifest to get blob associations
         manifest = image.get_manifest()
@@ -123,7 +132,7 @@ class ImageManifest(APIView):
         name = kwargs.get("name")
         reference = kwargs.get("reference")
 
-        image = get_image_by_tag(name, reference)
+        image = get_image_by_tag(name, tag=reference)
         if not image:
             raise Http404
 

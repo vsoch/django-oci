@@ -25,6 +25,7 @@ from django.db.models.signals import post_delete
 from django.middleware import cache
 import uuid
 
+import hashlib
 import json
 import os
 import uuid
@@ -37,6 +38,13 @@ PRIVACY_CHOICES = (
 
 def get_privacy_default():
     return settings.PRIVATE_ONLY
+
+
+def calculate_digest(body):
+    """Calculate the sha256 sum for some body (bytes)"""
+    hasher = hashlib.sha256()
+    hasher.update(body)
+    return hasher.hexdigest()
 
 
 def get_upload_folder(instance, filename):
@@ -69,6 +77,9 @@ def get_image_by_tag(name, reference, tag, create=False):
     except Repository.DoesNotExist:
         return None
 
+    print(repository)
+    print([x.version for x in repository.image_set.all()])
+    print(reference)
     # reference can be a tag (more likely) or digest
     image = None
     if tag:
@@ -273,24 +284,27 @@ class Image(models.Model):
         [self.remove_blob(x) for x in unlinked_blobs]
 
     def update_annotations(self, manifest):
-
+        pass
+        # TODO: not tested yet
         # Just delete all previous annotations
-        self.annotation_set.all().delete()
-        for key, value in manifest.get("annotations", {}):
-            annotation, created = Annotation.objects.get_or_create(
-                key=key, value=value, image=self
-            )
-            annotation.save()
+        # self.annotation_set.all().delete()
+        # for key, value in manifest.get("annotations", {}).items():
+        #    annotation, created = Annotation.objects.get_or_create(
+        #        key=key, image=self
+        #    )
+        #    annotation.value = value
+        #    annotation.save()
 
     def save_manifest(self, manifest):
         """Saving a manifest means creating an association between blobs and
         annotations
         """
-
+        if not isinstance(manifest, dict):
+            manifest = json.loads(manifest)
         self.update_blob_links(manifest)
         self.update_annotations(manifest)
-
         self.manifest = json.dumps(manifest)
+        self.version = "sha256:%s" % calculate_digest(self.manifest.encode("utf-8"))
         self.save()
 
     def get_manifest_url(self):
@@ -306,7 +320,7 @@ class Image(models.Model):
 
     # A container only gets a version when fit's frozen, otherwise known by tag
     def get_uri(self):
-        return "%s:%s" % (self.repository.name, self.tag)
+        return self.repository.name
 
     # Return an image file path
     def get_image_path(self):
@@ -371,7 +385,7 @@ class Annotation(models.Model):
 
     class Meta:
         app_label = "django_oci"
-        unique_together = (("key", "value"),)
+        unique_together = (("key", "image"),)
 
 
 # def delete_blobs(sender, instance, **kwargs):

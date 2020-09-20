@@ -196,9 +196,10 @@ class APIPushTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue("Location" in response.headers)
 
-    def test_push_manifest(self):
+    def test_push_view_delete_manifest(self):
         """
         PUT /v2/<name>/manifests/<reference>
+        DELETE /v2/<name>/manifests/<reference>
         """
         url = "http://127.0.0.1:8000%s" % (
             reverse(
@@ -215,6 +216,7 @@ class APIPushTests(APITestCase):
 
         # Prepare the manifest (already a text string)
         manifest = get_manifest(config_digest, self.digest)
+        manifest_reference = "sha256:%s" % calculate_digest(manifest.encode("utf-8"))
         headers = {
             "Content-Type": "application/vnd.oci.image.manifest.v1+json",
             "Content-Length": str(len(manifest)),
@@ -224,3 +226,30 @@ class APIPushTests(APITestCase):
         # Location must be in response header
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue("Location" in response.headers)
+
+        # TODO: need to test manifest download
+
+        # Retrieve newly created tag
+        tags_url = "http://127.0.0.1:8000%s" % (
+            reverse("django_oci:image_tags", kwargs={"name": self.repository})
+        )
+        print("GET to list tags: %s" % tags_url)
+        tags = requests.get(tags_url)
+        self.assertEqual(tags.status_code, status.HTTP_200_OK)
+        tags = tags.json()
+        for key in ["name", "tags"]:
+            assert key in tags
+
+        # First delete tag (we are allowed to have an untagged manifest)
+        response = requests.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+
+        # Finally, delete the manifest
+        url = "http://127.0.0.1:8000%s" % (
+            reverse(
+                "django_oci:image_manifest",
+                kwargs={"name": self.repository, "reference": manifest_reference},
+            )
+        )
+        response = requests.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
