@@ -43,6 +43,8 @@ jobs:
           export PATH="/usr/share/miniconda/bin:$PATH"
           source activate testing
           pip install -r tests/requirements.txt
+          python manage.py makemigrations django_oci
           python manage.py makemigrations
           python manage.py migrate
-          python manage.py test
+          python manage.py migrate django_oci
+          python manage.py test --noinput
