@@ -16,6 +16,7 @@ import subprocess
 import requests
 import threading
 import hashlib
+import json
 import os
 
 here = os.path.abspath(os.path.dirname(__file__))
@@ -26,6 +27,37 @@ def calculate_digest(blob):
     hasher = hashlib.sha256()
     hasher.update(blob)
     return hasher.hexdigest()
+
+
+def read_in_chunks(image, chunk_size=1024):
+    """Helper function to read file in chunks, with default size 1k."""
+    while True:
+        data = image.read(chunk_size)
+        if not data:
+            break
+        yield data
+
+
+def get_manifest(config_digest, layer_digest):
+    """A dummy image manifest with a config and single image layer"""
+    return json.dumps(
+        {
+            "schemaVersion": 2,
+            "config": {
+                "mediaType": "application/vnd.oci.image.config.v1+json",
+                "size": 7023,
+                "digest": config_digest,
+            },
+            "layers": [
+                {
+                    "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+                    "size": 32654,
+                    "digest": layer_digest,
+                }
+            ],
+            "annotations": {"com.example.key1": "peas", "com.example.key2": "carrots"},
+        }
+    )
 
 
 class APIBaseTests(APITestCase):
@@ -49,6 +81,7 @@ class APIPushTests(APITestCase):
     def setUp(self):
         self.repository = "vanessa/container"
         self.image = os.path.join(here, "busybox_latest.sif")
+        self.config = os.path.join(here, "config.json")
 
         # Read binary data and calculate sha256 digest
         with open(self.image, "rb") as fd:
@@ -59,17 +92,31 @@ class APIPushTests(APITestCase):
         """
         POST /v2/<name>/blobs/uploads/
         """
-        url = "http://127.0.0.1:8000%s?digest=%s" % (
-            reverse("django_oci:blob_upload", kwargs={"name": self.repository}),
-            self.digest,
-        )
-        headers = {
-            "Content-Length": str(len(self.data)),
-            "Content-Type": "application/octet-stream",
-        }
-        print("Single Monolithic POST: %s" % url)
-        response = requests.post(url, data=self.data, headers=headers)
-        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+
+        def push(digest, data, content_type="application/octet-stream"):
+            url = "http://127.0.0.1:8000%s?digest=%s" % (
+                reverse("django_oci:blob_upload", kwargs={"name": self.repository}),
+                digest,
+            )
+            print("Single Monolithic POST: %s" % url)
+            headers = {
+                "Content-Length": str(len(data)),
+                "Content-Type": content_type,
+            }
+            response = requests.post(url, data=data, headers=headers)
+            self.assertTrue(
+                response.status_code
+                in [status.HTTP_202_ACCEPTED, status.HTTP_201_CREATED]
+            )
+
+        # Push the image blob
+        push(digest=self.digest, data=self.data)
+
+        # Upload an image manifest
+        with open(self.config, "r") as fd:
+            content = fd.read().encode("utf-8")
+        config_digest = calculate_digest(content)
+        push(digest=config_digest, data=content)
 
     def test_push_post_then_put(self):
         """
@@ -90,7 +137,6 @@ class APIPushTests(APITestCase):
             response.headers["Location"],
             self.digest,
         )
-
         # PUT to upload blob url
         headers = {
             "Content-Length": str(len(self.data)),
@@ -103,3 +149,107 @@ class APIPushTests(APITestCase):
 
         download_url = response.headers["Location"]
         # TODO: test pull of location
+
+    def test_push_chunked(self):
+        """
+        POST /v2/<name>/blobs/uploads/
+        PATCH <location>
+        PUT /v2/<name>/blobs/uploads/
+        """
+        url = "http://127.0.0.1:8000%s" % (
+            reverse("django_oci:blob_upload", kwargs={"name": self.repository})
+        )
+        print("POST to request chunked session: %s" % url)
+        headers = {"Content-Type": "application/octet-stream", "Content-Length": "0"}
+        response = requests.post(url, headers=headers)
+
+        # Location must be in response header
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+        self.assertTrue("Location" in response.headers)
+        session_url = "http://127.0.0.1:8000%s" % response.headers["Location"]
+
+        # Read the file in chunks, for each do a patch
+        start = 0
+        with open(self.image, "rb") as fd:
+            for chunk in read_in_chunks(fd):
+                if not chunk:
+                    break
+
+                end = start + len(chunk) - 1
+                content_range = "%s-%s" % (start, end)
+                headers = {
+                    "Content-Range": content_range,
+                    "Content-Length": str(len(chunk)),
+                    "Content-Type": "application/octet-stream",
+                }
+                start = end + 1
+                print("PATCH to upload content range: %s" % content_range)
+                response = requests.patch(session_url, data=chunk, headers=headers)
+                self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+                self.assertTrue("Location" in response.headers)
+
+        # Finally, issue a PUT request to close blob
+        session_url = "%s?digest=%s" % (session_url, self.digest)
+        response = requests.put(session_url)
+
+        # Location must be in response header
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue("Location" in response.headers)
+
+    def test_push_view_delete_manifest(self):
+        """
+        PUT /v2/<name>/manifests/<reference>
+        DELETE /v2/<name>/manifests/<reference>
+        """
+        url = "http://127.0.0.1:8000%s" % (
+            reverse(
+                "django_oci:image_manifest",
+                kwargs={"name": self.repository, "tag": "latest"},
+            )
+        )
+        print("PUT to create image manifest: %s" % url)
+
+        # Calculate digest for config (yes, we haven't uploaded the blob, it's ok)
+        with open(self.config, "r") as fd:
+            content = fd.read()
+        config_digest = calculate_digest(content.encode("utf-8"))
+
+        # Prepare the manifest (already a text string)
+        manifest = get_manifest(config_digest, self.digest)
+        manifest_reference = "sha256:%s" % calculate_digest(manifest.encode("utf-8"))
+        headers = {
+            "Content-Type": "application/vnd.oci.image.manifest.v1+json",
+            "Content-Length": str(len(manifest)),
+        }
+        response = requests.put(url, headers=headers, data=manifest)
+
+        # Location must be in response header
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue("Location" in response.headers)
+
+        # TODO: need to test manifest download
+
+        # Retrieve newly created tag
+        tags_url = "http://127.0.0.1:8000%s" % (
+            reverse("django_oci:image_tags", kwargs={"name": self.repository})
+        )
+        print("GET to list tags: %s" % tags_url)
+        tags = requests.get(tags_url)
+        self.assertEqual(tags.status_code, status.HTTP_200_OK)
+        tags = tags.json()
+        for key in ["name", "tags"]:
+            assert key in tags
+
+        # First delete tag (we are allowed to have an untagged manifest)
+        response = requests.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+
+        # Finally, delete the manifest
+        url = "http://127.0.0.1:8000%s" % (
+            reverse(
+                "django_oci:image_manifest",
+                kwargs={"name": self.repository, "reference": manifest_reference},
+            )
+        )
+        response = requests.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)

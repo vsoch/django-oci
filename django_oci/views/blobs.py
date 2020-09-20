@@ -69,13 +69,13 @@ class BlobUpload(APIView):
         # These header attributes are shared by both scenarios
         session_id = kwargs.get("session_id")
         digest = request.GET.get("digest")
-        content_length = int(request.META.get("CONTENT_LENGTH"))
-        content_type = request.META.get("CONTENT_TYPE")
+        content_length = int(request.META.get("CONTENT_LENGTH", 0))
+        content_type = request.META.get("CONTENT_TYPE", settings.DEFAULT_CONTENT_TYPE)
 
         # Presence of content range distinguishes chunked upload from single PUT
         content_range = request.META.get("CONTENT_RANGE")
 
-        if not session_id or not digest or not content_length or not content_type:
+        if not session_id or not digest or not content_type:
             return Response(status=400)
 
         # Confirm that content length (body) == header value, otherwise bad request
@@ -97,7 +97,6 @@ class BlobUpload(APIView):
         except Blob.DoesNotExist:
             return Response(status=404)
 
-        # Scenario 1: a single PUT request
         if not content_range and request.body:
 
             # Now process the PUT request to the file! Provide the blob to update
@@ -147,10 +146,9 @@ class BlobUpload(APIView):
         """a patch request is done after a POST with content-length 0 to indicate
         a chunked upload request.
         """
-        name = kwargs.get("name")
         session_id = kwargs.get("session_id")
         content_length = int(request.META.get("CONTENT_LENGTH"))
-        content_range = int(request.META.get("CONTENT_RANGE"))
+        content_range = request.META.get("HTTP_CONTENT_RANGE")
         content_type = request.META.get("CONTENT_TYPE")
 
         if (
@@ -179,12 +177,8 @@ class BlobUpload(APIView):
         # Break apart into blob id and session uuid
         _, blob_id, version = session_id.split("/")
         try:
-            blob = Blob.objects.get(id=blob_id, version=version)
+            blob = Blob.objects.get(id=blob_id, digest=version)
         except Blob.DoesNotExist:
-            return Response(status=404)
-
-        # Ensure that the blob repository name is correct
-        if not blob.repository.name == name:
             return Response(status=404)
 
         # Update the blob content_type TODO: There should be some check

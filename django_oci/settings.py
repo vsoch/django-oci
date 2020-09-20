@@ -41,8 +41,8 @@ DEFAULTS = {
     "MEDIA_ROOT": "images",
     # Set a cache directory, otherwise defaults to MEDIA_ROOT + /cache
     "CACHE_DIR": None,
-    # The number of seconds a session (upload request) is value
-    "SESSION_EXPIRES_SECONDS": 10,
+    # The number of seconds a session (upload request) is valid (10 minutes)
+    "SESSION_EXPIRES_SECONDS": 600,
     # Disable deletion of an image by tag or manifest (default is not disabled)
     "DISABLE_TAG_MANIFEST_DELETE": False,
     # Default content type is application/octet-stream

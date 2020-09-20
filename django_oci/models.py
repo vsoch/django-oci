@@ -25,6 +25,7 @@ from django.db.models.signals import post_delete
 from django.middleware import cache
 import uuid
 
+import hashlib
 import json
 import os
 import uuid
@@ -39,6 +40,13 @@ def get_privacy_default():
     return settings.PRIVATE_ONLY
 
 
+def calculate_digest(body):
+    """Calculate the sha256 sum for some body (bytes)"""
+    hasher = hashlib.sha256()
+    hasher.update(body)
+    return hasher.hexdigest()
+
+
 def get_upload_folder(instance, filename):
     """a helper function to upload a blob to local storage"""
     repository_name = instance.repository.name
@@ -49,36 +57,50 @@ def get_upload_folder(instance, filename):
     return os.path.join(blobs_home, filename)
 
 
-def get_image_by_tag(name, reference):
+def get_image_by_tag(name, reference, tag, create=False):
     """given the name of a repository and a reference, look up the image
     based on the reference. By default we use the reference to look for
     a tag or digest. A return of None indicates that the image is not found,
-    and the view should raise Http404
+    and the view should deal with this (e.g., create the image) or raise
+    Http404.
 
     Parameters
     ==========
     name (str): the name of the repository to lookup
-    reference (str): an image tag or version
+    reference (str): an image version string
+    tag (str): a tag that doesn't match as a version string
+    create (bool): if does not exist, create the image (new manifest push)
     """
-    if not name or not reference:
-        return None
-
     # Ensure the repository exists
     try:
         repository = Repository.objects.get(name=name)
     except Repository.DoesNotExist:
         return None
 
+    print(repository)
+    print([x.version for x in repository.image_set.all()])
+    print(reference)
     # reference can be a tag (more likely) or digest
-    try:
-        image = repository.image_set.get(tag__name=reference)
-    except Repository.DoesNotExist:
+    image = None
+    if tag:
+        try:
+            image = repository.image_set.get(tag__name=tag)
+        except Image.DoesNotExist:
+            pass
 
-        # Allow lookup based on a version string
+    elif reference:
         try:
             image = repository.image_set.get(version=reference)
-        except:
-            return None
+        except Image.DoesNotExist:
+            pass
+
+    if not image and create:
+        image = Image.objects.create(repository=repository, version=reference)
+        image.save()
+        if tag:
+            tag, _ = Tag.objects.get_or_create(image=image, name=tag)
+            tag.image = image
+            tag.save()
 
     return image
 
@@ -218,21 +240,87 @@ class Image(models.Model):
 
     # Manifest functions to get, save, and return download url
     def get_manifest(self):
-        return json.loads(self.text)
+        return json.loads(self.manifest)
+
+    def add_blob(self, digest):
+        """A helper function to lookup and add a blob to an image. If the blob
+        is already added, no harm done.
+        """
+        if digest:
+            try:
+                blob = Blob.objects.get(digest=digest)
+                self.blobs.add(blob)
+            except Blob.DoesNotExist:
+                pass
+
+    def remove_blob(self, digest):
+        """We can only remove a blob if it is no longer linked to any images
+        for the repository. This should be called after new blobs are parsed
+        and added via the manifest.
+        """
+        if digest:
+            try:
+                blob = Blob.objects.get(digest=digest, repository=self.repository)
+                if blob.image_set.count() == 0:
+                    blob.delete()
+            except Blob.DoesNotExist:
+                pass
+
+    def update_blob_links(self, manifest):
+        # Keep a list of blobs that we will remove
+        current_blobs = set()
+
+        # The configuration blob, and then all blob layers
+        config_digest = manifest.get("config", {}).get("digest")
+        current_blobs.add(config_digest)
+        for layer in manifest.get("layers", []):
+            current_blobs.add(layer.get("digest"))
+
+        # Remove unlinked blobs
+        unlinked_blobs = [x for x in self.blobs.all() if x.digest not in current_blobs]
+
+        # Add all current blobs not already present, remove unlinked
+        [self.add_blob(digest) for digest in current_blobs]
+        [self.remove_blob(x) for x in unlinked_blobs]
+
+    def update_annotations(self, manifest):
+        pass
+        # TODO: not tested yet
+        # Just delete all previous annotations
+        # self.annotation_set.all().delete()
+        # for key, value in manifest.get("annotations", {}).items():
+        #    annotation, created = Annotation.objects.get_or_create(
+        #        key=key, image=self
+        #    )
+        #    annotation.value = value
+        #    annotation.save()
 
     def save_manifest(self, manifest):
+        """Saving a manifest means creating an association between blobs and
+        annotations
+        """
+        if not isinstance(manifest, dict):
+            manifest = json.loads(manifest)
+        self.update_blob_links(manifest)
+        self.update_annotations(manifest)
         self.manifest = json.dumps(manifest)
+        self.version = "sha256:%s" % calculate_digest(self.manifest.encode("utf-8"))
         self.save()
 
-    def get_download_url(self):
+    def get_manifest_url(self):
+        if self.version:
+            return reverse(
+                "django_oci:image_manifest",
+                kwargs={"name": self.repository.name, "reference": self.version},
+            )
         return reverse(
             "django_oci:image_manifest",
-            kwargs={"name": self.repository.name, "reference": self.tag.name},
+            kwargs={"name": self.repository.name, "tag": self.tag_set.first().name},
         )
 
     # A container only gets a version when fit's frozen, otherwise known by tag
     def get_uri(self):
-        return "%s:%s" % (self.repository.name, self.tag)
+        return self.repository.name
 
     # Return an image file path
     def get_image_path(self):
@@ -284,7 +372,7 @@ class Annotation(models.Model):
 
     key = models.CharField(max_length=250, null=False, blank=False)
     value = models.CharField(max_length=250, null=False, blank=False)
-    images = models.ManyToManyField(Image, blank=False, related_name="annotations")
+    image = models.ForeignKey(Image, on_delete=models.CASCADE)
 
     def __str__(self):
         return "%s:%s" % (self.key, self.value)
@@ -297,7 +385,7 @@ class Annotation(models.Model):
 
     class Meta:
         app_label = "django_oci"
-        unique_together = (("key", "value"),)
+        unique_together = (("key", "image"),)
 
 
 # def delete_blobs(sender, instance, **kwargs):

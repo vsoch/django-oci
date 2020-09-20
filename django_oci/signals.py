@@ -17,19 +17,16 @@ limitations under the License.
 """
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
-from .models import Image
+from .models import Image, Blob
 
 
 @receiver(post_delete, sender=Image)
 def delete_blobs(sender, instance, **kwargs):
     print("Delete image signal running.")
 
-    # Check for blobs
-    if instance.image not in ["", None]:
-        if hasattr(instance.image, "datafile"):
-            count = Container.objects.filter(
-                image__datafile=instance.image.datafile
-            ).count()
-            if count == 0:
-                print("Deleting %s, no longer used." % instance.image.datafile)
-                instance.image.datafile.delete()
+    for blob in instance.blobs.all():
+        if hasattr(blob, "datafile"):
+            if blob.image_set.count() == 0:
+                print("Deleting %s, no longer used." % blob.datafile)
+                blob.datafile.delete()
+                blob.delete()

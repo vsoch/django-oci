@@ -20,7 +20,7 @@ from django.db import IntegrityError
 from django.http.response import Http404, HttpResponse
 from django_oci import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django_oci.files import ChunkedFile
+from django_oci.files import ChunkedUpload
 from django_oci.models import Blob, Image, Repository
 from django_oci.utils import parse_image_name
 from rest_framework.response import Response
@@ -28,7 +28,9 @@ from rest_framework.response import Response
 from io import BytesIO
 import hashlib
 import logging
+import shutil
 import uuid
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +89,17 @@ class FileSystemStorage(StorageBase):
         """Finish a blob, meaning finalizing the digest and returning a download
         url relative to the name provided.
         """
-        # TODO: in the case of a blob created from upload session, need to rename to be digest
+        # In the case of a blob created from upload session, need to rename to be digest
+        if blob.datafile.name != digest:
+            final_path = os.path.join(
+                settings.MEDIA_ROOT, "blobs", blob.repository.name, digest
+            )
+            if not os.path.exists(final_path):
+                shutil.move(blob.datafile.path, final_path)
+            else:
+                os.remove(blob.datafile.name)
+            blob.datafile.name = digest
+
         blob.digest = digest
         blob.save()
 
@@ -182,6 +194,10 @@ class FileSystemStorage(StorageBase):
         """Write a chunk to a blob. During a chunked upload, the digest corresponds
         to the session_id, and is saved temporarily. It's named on upload finish.
         """
+        # Ensure the size is correct (we add 1 to include the start index)
+        if len(body) != content_end - content_start + 1:
+            return 416
+
         # If we don't yet have a blob.datafile, create a new one, assert that upload_range starts at 0
         if not blob.datafile:
 
@@ -190,21 +206,17 @@ class FileSystemStorage(StorageBase):
                 raise ValueError(
                     "The first request for a chunked upload must start at 0."
                 )
-            datafile = ChunkedFile(
-                name=blob.digest, content=body, content_type=blob.content_type
-            )
+
+            # Create an empty data file
+            datafile = ChunkedUpload(session_id=blob.digest)
 
         # Uploading another chunk for existing file
         else:
-            datafile = ChunkedFile(
-                name=blob.digest,
-                file=blob.datafile.file,
-                content_type=blob.content_type,
-            )
+            datafile = ChunkedUpload(session_id=blob.digest, file=blob.datafile.file)
 
         # Update the chunk, get back the status code
-        status_code = datafile.update_chunk(body, content_start, content_end)
-        blob.datafile = datafile
+        status_code = datafile.write_chunk(body, content_start)
+        blob.datafile.name = datafile.file.name
         blob.save()
         return status_code
 
