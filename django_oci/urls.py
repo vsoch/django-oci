@@ -60,13 +60,13 @@ urlpatterns = [
         name="blob_upload",
     ),
     path(
-        "%s/<path:name>/blobs/download/<digest>/" % settings.URL_PREFIX,
-        views.BlobDownload.as_view(),
-        name="blob_download",
-    ),
-    path(
         "%s/<path:session_id>/blobs/upload/" % settings.URL_PREFIX,
         views.BlobUpload.as_view(),
         name="blob_upload",
+    ),
+    path(
+        "%s/<path:name>/blobs/<digest>/" % settings.URL_PREFIX,
+        views.BlobDownload.as_view(),
+        name="blob_download",
     ),
 ]

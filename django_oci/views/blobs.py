@@ -40,8 +40,9 @@ class BlobDownload(APIView):
     allowed_methods = ("GET",)
 
     def get(self, request, *args, **kwargs):
-        """POST /v2/<name>/blobs/download/<digest>"""
+        """POST /v2/<name>/blobs/<digest>"""
 
+        # the name is only used to validate the user has permission to upload
         name = kwargs.get("name")
         digest = kwargs.get("digest")
         return storage.download_blob(name, digest)
@@ -53,7 +54,11 @@ class BlobUpload(APIView):
     """
 
     permission_classes = []
-    allowed_methods = ("POST", "PUT", "PATCH")
+    allowed_methods = (
+        "POST",
+        "PUT",
+        "PATCH",
+    )
 
     def put(self, request, *args, **kwargs):
         """PUT /v2/<name>/blobs/uploads/
@@ -181,6 +186,7 @@ class BlobUpload(APIView):
         except Blob.DoesNotExist:
             return Response(status=404)
 
+        print(blob)
         # Update the blob content_type TODO: There should be some check
         # to ensure that a next chunk content type is not different from that
         # already defined

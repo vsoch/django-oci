@@ -41,6 +41,7 @@ class ImageTags(APIView):
         """GET /v2/<name>/tags/list"""
         name = kwargs.get("name")
         number = request.GET.get("n")
+        last = request.GET.get("last")
 
         try:
             repository = Repository.objects.get(name=name)
@@ -52,7 +53,19 @@ class ImageTags(APIView):
             for x in list(repository.image_set.values_list("tag__name", flat=True))
             if x
         ]
-        if number:
+
+        # Tags must be sorted in lexical order
+        tags.sort()
+
+        # if last, <tagname> not included in the results, but up to <int> tags after <tagname> will be returned.
+        if last and number:
+            try:
+                start = tags.index(last)
+            except IndexError:
+                start = 0
+            tags = tags[start:number]
+
+        elif number:
             tags = tags[:number]
 
         # Ensure tags sorted in lexical order
@@ -112,18 +125,18 @@ class ImageManifest(APIView):
         name = kwargs.get("name")
         reference = kwargs.get("reference")
         tag = kwargs.get("tag")
+
+        # Reference must be sha256 digest
+        if reference and not reference.startswith("sha256:"):
+            return Response(status=400)
+
         image = get_image_by_tag(name, reference, tag, create=True)
 
         # The manifest is in the body, load to string
         manifest = request.body.decode("utf-8")
+
+        # This saves annotations and layer (blob) associations
         image.save_manifest(manifest)
-
-        # Load the manifest to get blob associations
-        manifest = image.get_manifest()
-
-        # TODO: do we want to parse or otherwise load the manifest?
-        # parse annotations
-        # validate layers?
         return Response(status=201, headers={"Location": image.get_manifest_url()})
 
     def get(self, request, *args, **kwargs):
@@ -131,20 +144,12 @@ class ImageManifest(APIView):
 
         name = kwargs.get("name")
         reference = kwargs.get("reference")
+        tag = kwargs.get("tag")
 
-        image = get_image_by_tag(name, tag=reference)
+        image = get_image_by_tag(name, tag=tag, reference=reference)
+
+        # If the manifest is not found in the registry, the response code MUST be 404 Not Found.
         if not image:
             raise Http404
 
-        # TODO check for header and see if we can filter down to types
-        # The client SHOULD include an Accept header indicating which manifest content types it supports. In a successful response, the Content-Type header will indicate which manifest type is being returned.
-
-        print(request.body)
-        print(image)
-
-        # Create and validate a manifest
-        manifest = Manifest()
-        manifest.load()
-
-        headers = {"Docker-Distribution-API-Version": "registry/2.0"}
-        return Response(manifest.to_dict())
+        return Response(image.get_manifest(), status=200)

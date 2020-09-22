@@ -94,6 +94,7 @@ class FileSystemStorage(StorageBase):
             final_path = os.path.join(
                 settings.MEDIA_ROOT, "blobs", blob.repository.name, digest
             )
+            print(final_path)
             if not os.path.exists(final_path):
                 shutil.move(blob.datafile.path, final_path)
             else:
@@ -129,6 +130,13 @@ class FileSystemStorage(StorageBase):
                 digest=calculated_digest, repository=repository
             )
 
+        # Delete the blob if it already existed
+        try:
+            existing_blob = Blob.objects.get(repository=blob.repository, digest=digest)
+            existing_blob.delete()
+        except:
+            pass
+
         # Update blob body if doesn't exist
         if not blob.datafile:
             datafile = SimpleUploadedFile(
@@ -138,15 +146,8 @@ class FileSystemStorage(StorageBase):
 
         # The digest is updated here if it was previously a session id
         blob.content_type = content_type
-
-        # If the blob digest is a session
-        try:
-            existing_blob = Blob.objects.get(repository=blob.repository, digest=digest)
-            blob.delete()
-            blob = existing_blob
-        except:
-            blob.digest = digest
-            blob.save()
+        blob.digest = digest
+        blob.save()
 
         # If it's already existing, return Accepted header, otherwise alert created
         status_code = 202
@@ -224,20 +225,22 @@ class FileSystemStorage(StorageBase):
         """Given a blob repository name and digest, return response to stream download.
         The repository name is associated to the blob via the image.
         """
-        # TODO: might need to retrieve blob first and then check that the image is associated
         try:
             blob = Blob.objects.get(digest=digest, repository__name=name)
         except Blob.DoesNotExist:
             raise Http404
 
-        blob_path = os.path.join(settings.MEDIA_ROOT, blob.datafile.name)
-        if os.path.exists(blob_path):
-            with open(file_path, "rb") as fh:
+        # TODO Need to have delete of blob.datafile.name on blob delete
+        if os.path.exists(blob.datafile.name):
+            with open(blob.datafile.name, "rb") as fh:
                 response = HttpResponse(fh.read(), content_type=blob.content_type)
                 response[
                     "Content-Disposition"
-                ] = "inline; filename=" + os.path.basename(file_path)
+                ] = "inline; filename=" + os.path.basename(blob.datafile.name)
                 return response
+
+        # If we get here, file doesn't exist
+        raise Http404
 
 
 # Load storage on application init
