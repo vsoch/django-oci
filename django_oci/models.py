@@ -77,9 +77,6 @@ def get_image_by_tag(name, reference, tag, create=False):
     except Repository.DoesNotExist:
         return None
 
-    print(repository)
-    print([x.version for x in repository.image_set.all()])
-    print(reference)
     # reference can be a tag (more likely) or digest
     image = None
     if tag:
@@ -284,16 +281,12 @@ class Image(models.Model):
         [self.remove_blob(x) for x in unlinked_blobs]
 
     def update_annotations(self, manifest):
-        pass
-        # TODO: not tested yet
         # Just delete all previous annotations
-        # self.annotation_set.all().delete()
-        # for key, value in manifest.get("annotations", {}).items():
-        #    annotation, created = Annotation.objects.get_or_create(
-        #        key=key, image=self
-        #    )
-        #    annotation.value = value
-        #    annotation.save()
+        self.annotation_set.all().delete()
+        for key, value in manifest.get("annotations", {}).items():
+            annotation, created = Annotation.objects.get_or_create(key=key, image=self)
+            annotation.value = value
+            annotation.save()
 
     def save_manifest(self, manifest):
         """Saving a manifest means creating an association between blobs and
@@ -386,15 +379,3 @@ class Annotation(models.Model):
     class Meta:
         app_label = "django_oci"
         unique_together = (("key", "image"),)
-
-
-# def delete_blobs(sender, instance, **kwargs):
-#    for image in instance.image_set.all():
-#        if hasattr(image, "datafile"):
-#            count = Image.objects.filter(image__datafile=image.datafile).count()
-#            if count == 0:
-#                print("Deleting %s, no longer used." % image.datafile)
-#                image.datafile.delete()
-
-
-# post_delete.connect(delete_blobs, sender=Image)

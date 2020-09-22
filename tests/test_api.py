@@ -108,9 +108,15 @@ class APIPushTests(APITestCase):
                 response.status_code
                 in [status.HTTP_202_ACCEPTED, status.HTTP_201_CREATED]
             )
+            return response
 
         # Push the image blob
-        push(digest=self.digest, data=self.data)
+        response = push(digest=self.digest, data=self.data)
+
+        # Test pull of blob
+        download_url = response.headers["Location"]
+        response = requests.get(download_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Upload an image manifest
         with open(self.config, "r") as fd:
@@ -148,7 +154,8 @@ class APIPushTests(APITestCase):
         self.assertTrue("Location" in response.headers)
 
         download_url = response.headers["Location"]
-        # TODO: test pull of location
+        response = requests.get(download_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_push_chunked(self):
         """
@@ -227,7 +234,10 @@ class APIPushTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue("Location" in response.headers)
 
-        # TODO: need to test manifest download
+        # test manifest download
+        response = requests.get(url).json()
+        for key in ["schemaVersion", "config", "layers", "annotations"]:
+            assert key in response
 
         # Retrieve newly created tag
         tags_url = "http://127.0.0.1:8000%s" % (
