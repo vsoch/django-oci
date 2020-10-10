@@ -1,16 +1,10 @@
 # django-oci
 
 ![https://badge.fury.io/py/django-oci.svg](https://badge.fury.io/py/django-oci)
-![https://travis-ci.org/vsoch/django-oci.svg?branch=master](https://travis-ci.org/vsoch/django-oci)
-![https://codecov.io/gh/vsoch/django-oci/branch/master/graph/badge.svg](https://codecov.io/gh/vsoch/django-oci)
 
 Open Containers distribution API for Django. 
 
-**under development**
-
-> Not all files are added yet to this repository, so it will not work! This readme will be updated when all is ready.
-
-This repository will serve a Django app that can be used to provide an opencontainers
+This repository serves a Django app that can be used to provide an opencontainers
 distribution (OCI) endpoint to push and pull containers. An [example](tests)
 application is provided in `tests` that can be interacted with here.
 
@@ -30,7 +24,6 @@ Add it to your `INSTALLED_APPS` along with `rest_framework`
         ...
         'django_oci',
         'rest_framework',
-        'chunked_upload',
         ...
     )
 ```
@@ -75,45 +68,85 @@ python manage.py migrate django_oci
 python manage.py runserver
 ```
 
-### Authentication
+See the [tests](tests) folder for more details, including how to start a development
+server and then run through various [examples](examples).
 
-**todo**
-
-### Push a Container
-
-When your server is running with `python manage.py runserver` then you can try pushing
-a container with the provided script [push-container.py](push-container.py)
-
-```bash
-# Obtain a container
-singularity pull docker://busybox
-
-# Push it
-python push-container.py busybox_latest.sif vanessa/test:latest
-```
-
-The push script uses a Multipart upload to interact with the API.
 
 ## Testing
 
+### Python Tests
 Tests are located in [tests](tests) and can be run with:
 
 ```bash
+source <YOURVIRTUALENV>/bin/activate
+pip install -r requirements.txt
 python runtests.py
 ```
 
+### Conformance
 
-## Running Tests
+Conformance testing is provided by the [distribution-spec](https://github.com/opencontainers/distribution-spec) repository.
+This means that you would want to start the server, and then clone this repository and run the tests. Complete
+instructions are [here](https://github.com/opencontainers/distribution-spec/tree/master/conformance) and an example is provided below:
 
-Does the code actually work?
+#### 1. Start the Server
+First run your example server as follows (cleaning up the test database):
 
 ```bash
-source <YOURVIRTUALENV>/bin/activate
-(myenv) $ pip install tox
-(myenv) $ tox
+rm -rf db-test.sqlite3
+python manage.py makemigrations django_oci
+python manage.py makemigrations
+python manage.py migrate
+python manage.py migrate django_oci
+python manage.py runserver
+```
+```
+System check identified no issues (0 silenced).
+October 10, 2020 - 20:52:20
+Django version 3.1.1, using settings 'tests.settings'
+Starting development server at http://127.0.0.1:8000/
+Quit the server with CONTROL-C.
+```
 
+This tells us that the developmment server is running on port 8000 on localhost. We will
+need this for next steps!
+
+#### 2. Clone and build conformance tests
+
+Somewhere else on your machine, clone the distribution-spec repository and then
+cd into conformance.
+
+```bash
+git clone https://github.com/opencontainers/distribution-spec/
+cd distribution-spec/conformance
+```
+You'll need to [install GoLang](https://golang.org/doc/install) and then compile the test code into `conformance.test`:
+
+```bash
+go test -c
+```
+
+Then export environment variables that we need for tests:
+
+```bash
+# Registry details
+export OCI_ROOT_URL="http://127.0.0.1:8000/"
+export OCI_NAMESPACE="myorg/myrepo"
+#export OCI_USERNAME="myuser"
+#export OCI_PASSWORD="mypass"
+
+# Which workflows to run
+export OCI_TEST_PUSH=1
+export OCI_TEST_PULL=1
+export OCI_TEST_CONTENT_DISCOVERY=1
+export OCI_TEST_CONTENT_MANAGEMENT=1
+
+# Extra settings
+#export OCI_HIDE_SKIPPED_WORKFLOWS=0
+#export OCI_DEBUG=0
+#export OCI_DELETE_MANIFEST_BEFORE_BLOBS=0
+```
 
 ## Many Thanks 
-
 
 * [cookiecutter-djangopackage](https://github.com/pydanny/cookiecutter-djangopackage)

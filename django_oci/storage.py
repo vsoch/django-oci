@@ -79,7 +79,9 @@ class FileSystemStorage(StorageBase):
         blob.save()
 
         # Upon success, the response MUST have a code of 202 Accepted with a location header
-        return Response(status=202, headers={"Location": blob.create_upload_session()})
+        location = blob.create_upload_session()
+        print(location)
+        return Response(status=202, headers={"Location": location})
 
     def finish_blob(
         self,
@@ -94,7 +96,6 @@ class FileSystemStorage(StorageBase):
             final_path = os.path.join(
                 settings.MEDIA_ROOT, "blobs", blob.repository.name, digest
             )
-            print(final_path)
             if not os.path.exists(final_path):
                 shutil.move(blob.datafile.path, final_path)
             else:
@@ -120,6 +121,11 @@ class FileSystemStorage(StorageBase):
         """
         # the <digest> MUST match the blob's digest (how to calculate)
         calculated_digest = self.calculate_digest(body)
+
+        # If there is an algorithm prefix, add it
+        if ":" in digest:
+            calculated_digest = "%s:%s" % (digest.split(":")[0], calculated_digest)
+
         if calculated_digest != digest:
             return Response(status=400)
 

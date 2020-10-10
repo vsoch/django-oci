@@ -80,8 +80,12 @@ class APIBaseTests(APITestCase):
 class APIPushTests(APITestCase):
     def setUp(self):
         self.repository = "vanessa/container"
-        self.image = os.path.join(here, "busybox_latest.sif")
-        self.config = os.path.join(here, "config.json")
+        self.image = os.path.abspath(
+            os.path.join(here, "..", "examples", "singularity", "busybox_latest.sif")
+        )
+        self.config = os.path.abspath(
+            os.path.join(here, "..", "examples", "singularity", "config.json")
+        )
 
         # Read binary data and calculate sha256 digest
         with open(self.image, "rb") as fd:

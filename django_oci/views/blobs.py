@@ -80,16 +80,24 @@ class BlobUpload(APIView):
         # Presence of content range distinguishes chunked upload from single PUT
         content_range = request.META.get("CONTENT_RANGE")
 
+        print(session_id)
+        print(digest)
+        print(content_length)
+        print(content_type)
+        print(content_range)
+
         if not session_id or not digest or not content_type:
             return Response(status=400)
 
         # Confirm that content length (body) == header value, otherwise bad request
         if len(request.body) != content_length:
+            print("iNVALID LENGTH")
             return Response(status=400)
 
         # Get the session id, if it has not expired
         filecache = cache.caches["django_oci_upload"]
         if not filecache.get(session_id):
+            print("not found filecache")
             return Response(status=400)
 
         # Ensure it cannot be used again
@@ -156,19 +164,20 @@ class BlobUpload(APIView):
         content_range = request.META.get("HTTP_CONTENT_RANGE")
         content_type = request.META.get("CONTENT_TYPE")
 
-        if (
-            not session_id
-            or not content_range
-            or not content_length
-            or not content_type
-        ):
+        if not session_id or not content_length or not content_type:
             return Response(status=400)
 
-        # Parse content range into start and end (int)
-        try:
-            content_start, content_end = parse_content_range(content_range)
-        except ValueError:
-            return Response(status=400)
+        # If a content range is not defined, assume start to end
+        if not content_range:
+            content_start = 0
+            content_end = content_length - 1
+
+        else:
+            # Parse content range into start and end (int)
+            try:
+                content_start, content_end = parse_content_range(content_range)
+            except ValueError:
+                return Response(status=400)
 
         # Confirm that content length (body) == header value, otherwise bad request
         if len(request.body) != content_length:
@@ -186,7 +195,6 @@ class BlobUpload(APIView):
         except Blob.DoesNotExist:
             return Response(status=404)
 
-        print(blob)
         # Update the blob content_type TODO: There should be some check
         # to ensure that a next chunk content type is not different from that
         # already defined
@@ -215,16 +223,17 @@ class BlobUpload(APIView):
         if content_length in [None, ""]:
             return Response(status=411)
 
-        # Unsupported media type
-        if content_type not in settings.CONTENT_TYPES:
-            return Response(status=415)
-
         # Get or create repository (TODO:will need to validate user permissions here)
         repository, created = Repository.objects.get_or_create(name=name)
 
         # Case 1: POST provided with digest == single monolithic upload
         # /v2/<name>/blobs/uploads/?digest=<digest>
         if "digest" in request.GET:
+
+            # Unsupported media type, only needed for digest
+            if content_type not in settings.CONTENT_TYPES:
+                return Response(status=415)
+
             digest = request.GET["digest"]
 
             # Confirm that content length (body) == header value, otherwise bad request

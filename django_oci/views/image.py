@@ -18,10 +18,12 @@ limitations under the License.
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from django.http.response import Http404, HttpResponse
 from django_oci.models import Repository, Image, get_image_by_tag
 from django_oci import settings
 from django_oci.storage import storage
+from .parsers import ManifestRenderer
 
 import os
 
@@ -79,6 +81,7 @@ class ImageManifest(APIView):
     PUT: is to push a manifest
     """
 
+    renderer_classes = [ManifestRenderer, JSONRenderer]
     permission_classes = []
     allowed_methods = (
         "GET",
@@ -119,9 +122,11 @@ class ImageManifest(APIView):
         https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pushing-manifests
         """
         # We likely can default to the v1 manifest, unless otherwise specified
+        # application/vnd.oci.image.manifest.v1+json
         content_type = request.META.get(
-            "CONTENT_TYPE", "application/vnd.oci.image.manifest.v1+json"
+            "CONTENT_TYPE", settings.IMAGE_MANIFEST_CONTENT_TYPE
         )
+
         name = kwargs.get("name")
         reference = kwargs.get("reference")
         tag = kwargs.get("tag")
@@ -146,10 +151,13 @@ class ImageManifest(APIView):
         reference = kwargs.get("reference")
         tag = kwargs.get("tag")
 
+        print(name)
+        print(reference)
+        print(tag)
         image = get_image_by_tag(name, tag=tag, reference=reference)
 
         # If the manifest is not found in the registry, the response code MUST be 404 Not Found.
         if not image:
             raise Http404
-
-        return Response(image.get_manifest(), status=200)
+        manifest = image.get_manifest()
+        return Response(manifest, status=200)

@@ -33,6 +33,8 @@ DEFAULTS = {
     "AUTHENTICATED_USER": None,
     # Allowed content types to upload as layers
     "CONTENT_TYPES": ["application/octet-stream"],
+    # Image Manifest content type
+    "IMAGE_MANIFEST_CONTENT_TYPE": "application/vnd.oci.image.manifest.v1+json",
     # Storage backend
     "STORAGE_BACKEND": "filesystem",
     # Storage backend
@@ -63,6 +65,9 @@ DOMAIN_URL = oci.get("DOMAIN_URL", DEFAULTS["DOMAIN_URL"])
 MEDIA_ROOT = oci.get("MEDIA_ROOT", DEFAULTS["MEDIA_ROOT"])
 CACHE_DIR = oci.get("CACHE_DIR", DEFAULTS["CACHE_DIR"])
 DEFAULT_CONTENT_TYPE = oci.get("DEFAULT_CONTENT_TYPE", DEFAULTS["DEFAULT_CONTENT_TYPE"])
+IMAGE_MANIFEST_CONTENT_TYPE = oci.get(
+    "IMAGE_MANIFEST_CONTENT_TYPE", DEFAULTS["IMAGE_MANIFEST_CONTENT_TYPE"]
+)
 DISABLE_TAG_MANIFEST_DELETE = oci.get(
     "DISABLE_TAG_MANIFEST_DELETE", DEFAULTS["DISABLE_TAG_MANIFEST_DELETE"]
 )

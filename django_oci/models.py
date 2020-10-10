@@ -237,7 +237,7 @@ class Image(models.Model):
 
     # Manifest functions to get, save, and return download url
     def get_manifest(self):
-        return json.loads(self.manifest)
+        return self.manifest.encode("utf-8")
 
     def add_blob(self, digest):
         """A helper function to lookup and add a blob to an image. If the blob
@@ -292,11 +292,15 @@ class Image(models.Model):
         """Saving a manifest means creating an association between blobs and
         annotations
         """
-        if not isinstance(manifest, dict):
-            manifest = json.loads(manifest)
-        self.update_blob_links(manifest)
-        self.update_annotations(manifest)
-        self.manifest = json.dumps(manifest)
+        # Load a derivation to get blob links and annotations
+        loaded = manifest
+        if not isinstance(loaded, dict):
+            loaded = json.loads(loaded)
+        self.update_blob_links(loaded)
+        self.update_annotations(loaded)
+
+        # But the raw manifest is saved as provided
+        self.manifest = manifest
         self.version = "sha256:%s" % calculate_digest(self.manifest.encode("utf-8"))
         self.save()
 
