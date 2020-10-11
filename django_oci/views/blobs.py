@@ -78,26 +78,19 @@ class BlobUpload(APIView):
         content_type = request.META.get("CONTENT_TYPE", settings.DEFAULT_CONTENT_TYPE)
 
         # Presence of content range distinguishes chunked upload from single PUT
-        content_range = request.META.get("CONTENT_RANGE")
-
-        print(session_id)
-        print(digest)
-        print(content_length)
-        print(content_type)
-        print(content_range)
+        # A final PUT request may not have a content_range if no chunk to upload
+        content_range = request.META.get("HTTP_CONTENT_RANGE")
 
         if not session_id or not digest or not content_type:
             return Response(status=400)
 
         # Confirm that content length (body) == header value, otherwise bad request
         if len(request.body) != content_length:
-            print("iNVALID LENGTH")
             return Response(status=400)
 
         # Get the session id, if it has not expired
         filecache = cache.caches["django_oci_upload"]
         if not filecache.get(session_id):
-            print("not found filecache")
             return Response(status=400)
 
         # Ensure it cannot be used again
@@ -151,7 +144,6 @@ class BlobUpload(APIView):
 
         return storage.finish_blob(
             blob=blob,
-            name=name,
             digest=digest,
         )
 

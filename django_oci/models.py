@@ -18,7 +18,7 @@ limitations under the License.
 
 from django_oci import settings
 from django.urls import reverse
-from django.db import models
+from django.db import models, IntegrityError
 from django.contrib.auth.models import User
 from django.db.models.signals import post_delete
 
@@ -57,7 +57,7 @@ def get_upload_folder(instance, filename):
     return os.path.join(blobs_home, filename)
 
 
-def get_image_by_tag(name, reference, tag, create=False):
+def get_image_by_tag(name, reference, tag, create=False, body=None):
     """given the name of a repository and a reference, look up the image
     based on the reference. By default we use the reference to look for
     a tag or digest. A return of None indicates that the image is not found,
@@ -70,6 +70,7 @@ def get_image_by_tag(name, reference, tag, create=False):
     reference (str): an image version string
     tag (str): a tag that doesn't match as a version string
     create (bool): if does not exist, create the image (new manifest push)
+    body (bytes): if we need to create, we must have a digest from the body
     """
     # Ensure the repository exists
     try:
@@ -92,12 +93,18 @@ def get_image_by_tag(name, reference, tag, create=False):
             pass
 
     if not image and create:
-        image = Image.objects.create(repository=repository, version=reference)
-        image.save()
+        if not reference and body:
+            reference = "sha256:%s" % calculate_digest(body)
+        image, _ = Image.objects.get_or_create(
+            repository=repository, version=reference, manifest=body
+        )
         if tag:
             tag, _ = Tag.objects.get_or_create(image=image, name=tag)
             tag.image = image
             tag.save()
+
+        # This saves annotations and layer (blob) associations
+        image.update_manifest(body)
 
     return image
 
@@ -191,11 +198,14 @@ class Blob(models.Model):
         """
         # Get the django oci upload cache, and generate an expiring session upload id
         filecache = cache.caches["django_oci_upload"]
-        session_id = "put/%s/%s" % (self.id, self.digest)
 
         # Expires in default 10 seconds
-        filecache.set(session_id, 1, timeout=settings.SESSION_EXPIRES_SECONDS)
-        return reverse("django_oci:blob_upload", kwargs={"session_id": session_id})
+        filecache.set(self.session_id, 1, timeout=settings.SESSION_EXPIRES_SECONDS)
+        return reverse("django_oci:blob_upload", kwargs={"session_id": self.session_id})
+
+    @property
+    def session_id(self):
+        return "put/%s/%s" % (self.id, self.digest)
 
     def get_abspath(self):
         return os.path.join(settings.MEDIA_ROOT, self.datafile.name)
@@ -230,14 +240,14 @@ class Image(models.Model):
     blobs = models.ManyToManyField(Blob)
 
     # The text of the manifest (added at the end)
-    manifest = models.TextField(null=False, blank=False, default="{}")
+    manifest = models.BinaryField(null=False, blank=False, default=b"{}")
 
     # The version (digest) of the manifest
     version = models.CharField(max_length=250, null=True, blank=True)
 
     # Manifest functions to get, save, and return download url
     def get_manifest(self):
-        return self.manifest.encode("utf-8")
+        return self.manifest
 
     def add_blob(self, digest):
         """A helper function to lookup and add a blob to an image. If the blob
@@ -288,20 +298,17 @@ class Image(models.Model):
             annotation.value = value
             annotation.save()
 
-    def save_manifest(self, manifest):
-        """Saving a manifest means creating an association between blobs and
+    def update_manifest(self, manifest):
+        """Loading a manifest (after save) means creating an association between blobs and
         annotations
         """
         # Load a derivation to get blob links and annotations
-        loaded = manifest
-        if not isinstance(loaded, dict):
-            loaded = json.loads(loaded)
-        self.update_blob_links(loaded)
-        self.update_annotations(loaded)
-
-        # But the raw manifest is saved as provided
-        self.manifest = manifest
-        self.version = "sha256:%s" % calculate_digest(self.manifest.encode("utf-8"))
+        if not isinstance(manifest, str):
+            manifest = manifest.decode("utf-8")
+        if not isinstance(manifest, dict):
+            manifest = json.loads(manifest)
+        self.update_blob_links(manifest)
+        self.update_annotations(manifest)
         self.save()
 
     def get_manifest_url(self):

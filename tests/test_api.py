@@ -154,7 +154,9 @@ class APIPushTests(APITestCase):
         }
         print("PUT to upload: %s" % blob_url)
         response = requests.put(blob_url, data=self.data, headers=headers)
-        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+
+        # This should allow HTTP_202_ACCEPTED too
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue("Location" in response.headers)
 
         download_url = response.headers["Location"]

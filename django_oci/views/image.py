@@ -135,13 +135,8 @@ class ImageManifest(APIView):
         if reference and not reference.startswith("sha256:"):
             return Response(status=400)
 
-        image = get_image_by_tag(name, reference, tag, create=True)
-
-        # The manifest is in the body, load to string
-        manifest = request.body.decode("utf-8")
-
-        # This saves annotations and layer (blob) associations
-        image.save_manifest(manifest)
+        # Also provide the body in case we have a tag
+        image = get_image_by_tag(name, reference, tag, create=True, body=request.body)
         return Response(status=201, headers={"Location": image.get_manifest_url()})
 
     def get(self, request, *args, **kwargs):
@@ -151,13 +146,9 @@ class ImageManifest(APIView):
         reference = kwargs.get("reference")
         tag = kwargs.get("tag")
 
-        print(name)
-        print(reference)
-        print(tag)
         image = get_image_by_tag(name, tag=tag, reference=reference)
 
         # If the manifest is not found in the registry, the response code MUST be 404 Not Found.
         if not image:
             raise Http404
-        manifest = image.get_manifest()
-        return Response(manifest, status=200)
+        return Response(image.manifest, status=200)
