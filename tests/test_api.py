@@ -87,7 +87,8 @@ class APIPushTests(APITestCase):
         # Read binary data and calculate sha256 digest
         with open(self.image, "rb") as fd:
             self.data = fd.read()
-        self.digest = calculate_digest(self.data)
+        self._digest = calculate_digest(self.data)
+        self.digest = "sha256:%s" % self._digest
 
     def test_push_single_monolithic_post(self):
         """
