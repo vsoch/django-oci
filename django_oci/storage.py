@@ -97,6 +97,7 @@ class FileSystemStorage(StorageBase):
                 settings.MEDIA_ROOT, "blobs", blob.repository.name, digest
             )
             if not os.path.exists(final_path):
+                os.makedirs(os.path.dirname(final_path))
                 shutil.move(blob.datafile.path, final_path)
             else:
                 os.remove(blob.datafile.name)

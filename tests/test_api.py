@@ -2,19 +2,16 @@
 test_django-oci api
 -------------------
 
-Tests for `django-oci` models module.
+Tests for `django-oci` api.
 """
 
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from django.test import TestCase
-from django.test import Client
 
 from time import sleep
 import subprocess
 import requests
-import threading
 import hashlib
 import json
 import os
@@ -90,7 +87,8 @@ class APIPushTests(APITestCase):
         # Read binary data and calculate sha256 digest
         with open(self.image, "rb") as fd:
             self.data = fd.read()
-        self.digest = calculate_digest(self.data)
+        self._digest = calculate_digest(self.data)
+        self.digest = "sha256:%s" % self._digest
 
     def test_push_single_monolithic_post(self):
         """
