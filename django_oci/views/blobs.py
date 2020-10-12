@@ -37,7 +37,10 @@ class BlobDownload(APIView):
     """Given a GET request for a blob, stream the blob."""
 
     permission_classes = []
-    allowed_methods = ("GET",)
+    allowed_methods = (
+        "GET",
+        "DELETE",
+    )
 
     def get(self, request, *args, **kwargs):
         """POST /v2/<name>/blobs/<digest>"""
@@ -46,6 +49,12 @@ class BlobDownload(APIView):
         name = kwargs.get("name")
         digest = kwargs.get("digest")
         return storage.download_blob(name, digest)
+
+    def delete(self, request, *args, **kwargs):
+        """DELETE /v2/<name>/blobs/<digest>"""
+        name = kwargs.get("name")
+        digest = kwargs.get("digest")
+        return storage.delete_blob(name, digest)
 
 
 class BlobUpload(APIView):
@@ -78,7 +87,8 @@ class BlobUpload(APIView):
         content_type = request.META.get("CONTENT_TYPE", settings.DEFAULT_CONTENT_TYPE)
 
         # Presence of content range distinguishes chunked upload from single PUT
-        content_range = request.META.get("CONTENT_RANGE")
+        # A final PUT request may not have a content_range if no chunk to upload
+        content_range = request.META.get("HTTP_CONTENT_RANGE")
 
         if not session_id or not digest or not content_type:
             return Response(status=400)
@@ -143,7 +153,6 @@ class BlobUpload(APIView):
 
         return storage.finish_blob(
             blob=blob,
-            name=name,
             digest=digest,
         )
 
@@ -156,19 +165,20 @@ class BlobUpload(APIView):
         content_range = request.META.get("HTTP_CONTENT_RANGE")
         content_type = request.META.get("CONTENT_TYPE")
 
-        if (
-            not session_id
-            or not content_range
-            or not content_length
-            or not content_type
-        ):
+        if not session_id or not content_length or not content_type:
             return Response(status=400)
 
-        # Parse content range into start and end (int)
-        try:
-            content_start, content_end = parse_content_range(content_range)
-        except ValueError:
-            return Response(status=400)
+        # If a content range is not defined, assume start to end
+        if not content_range:
+            content_start = 0
+            content_end = content_length - 1
+
+        else:
+            # Parse content range into start and end (int)
+            try:
+                content_start, content_end = parse_content_range(content_range)
+            except ValueError:
+                return Response(status=400)
 
         # Confirm that content length (body) == header value, otherwise bad request
         if len(request.body) != content_length:
@@ -186,7 +196,6 @@ class BlobUpload(APIView):
         except Blob.DoesNotExist:
             return Response(status=404)
 
-        print(blob)
         # Update the blob content_type TODO: There should be some check
         # to ensure that a next chunk content type is not different from that
         # already defined
@@ -215,16 +224,17 @@ class BlobUpload(APIView):
         if content_length in [None, ""]:
             return Response(status=411)
 
-        # Unsupported media type
-        if content_type not in settings.CONTENT_TYPES:
-            return Response(status=415)
-
         # Get or create repository (TODO:will need to validate user permissions here)
         repository, created = Repository.objects.get_or_create(name=name)
 
         # Case 1: POST provided with digest == single monolithic upload
         # /v2/<name>/blobs/uploads/?digest=<digest>
         if "digest" in request.GET:
+
+            # Unsupported media type, only needed for digest
+            if content_type not in settings.CONTENT_TYPES:
+                return Response(status=415)
+
             digest = request.GET["digest"]
 
             # Confirm that content length (body) == header value, otherwise bad request

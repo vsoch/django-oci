@@ -18,10 +18,15 @@ limitations under the License.
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from django.http.response import Http404, HttpResponse
+from django.views.decorators.cache import never_cache
+
 from django_oci.models import Repository, Image, get_image_by_tag
 from django_oci import settings
 from django_oci.storage import storage
+from .parsers import ManifestRenderer
+
 
 import os
 
@@ -37,6 +42,7 @@ class ImageTags(APIView):
     permission_classes = []
     allowed_methods = ("GET",)
 
+    @never_cache
     def get(self, request, *args, **kwargs):
         """GET /v2/<name>/tags/list"""
         name = kwargs.get("name")
@@ -56,6 +62,10 @@ class ImageTags(APIView):
 
         # Tags must be sorted in lexical order
         tags.sort()
+
+        # Number must be an integer if defined
+        if number:
+            number = int(number)
 
         # if last, <tagname> not included in the results, but up to <int> tags after <tagname> will be returned.
         if last and number:
@@ -79,6 +89,7 @@ class ImageManifest(APIView):
     PUT: is to push a manifest
     """
 
+    renderer_classes = [ManifestRenderer, JSONRenderer]
     permission_classes = []
     allowed_methods = (
         "GET",
@@ -96,6 +107,8 @@ class ImageManifest(APIView):
         name = kwargs.get("name")
         reference = kwargs.get("reference")
         tag = kwargs.get("tag")
+
+        from django_oci.models import Tag
 
         # Retrieve the image, return of None indicates not found
         image = get_image_by_tag(name, reference=reference, tag=tag, create=False)
@@ -119,9 +132,11 @@ class ImageManifest(APIView):
         https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pushing-manifests
         """
         # We likely can default to the v1 manifest, unless otherwise specified
+        # application/vnd.oci.image.manifest.v1+json
         content_type = request.META.get(
-            "CONTENT_TYPE", "application/vnd.oci.image.manifest.v1+json"
+            "CONTENT_TYPE", settings.IMAGE_MANIFEST_CONTENT_TYPE
         )
+
         name = kwargs.get("name")
         reference = kwargs.get("reference")
         tag = kwargs.get("tag")
@@ -130,13 +145,8 @@ class ImageManifest(APIView):
         if reference and not reference.startswith("sha256:"):
             return Response(status=400)
 
-        image = get_image_by_tag(name, reference, tag, create=True)
-
-        # The manifest is in the body, load to string
-        manifest = request.body.decode("utf-8")
-
-        # This saves annotations and layer (blob) associations
-        image.save_manifest(manifest)
+        # Also provide the body in case we have a tag
+        image = get_image_by_tag(name, reference, tag, create=True, body=request.body)
         return Response(status=201, headers={"Location": image.get_manifest_url()})
 
     def get(self, request, *args, **kwargs):
@@ -151,5 +161,4 @@ class ImageManifest(APIView):
         # If the manifest is not found in the registry, the response code MUST be 404 Not Found.
         if not image:
             raise Http404
-
-        return Response(image.get_manifest(), status=200)
+        return Response(image.manifest, status=200)
