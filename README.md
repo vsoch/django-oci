@@ -8,6 +8,8 @@ This repository serves a Django app that can be used to provide an opencontainer
 distribution (OCI) endpoint to push and pull containers. An [example](tests)
 application is provided in `tests` that can be interacted with here.
 
+![docs/assets/img/django-oci.png](docs/assets/img/django-oci.png)
+
 ## Quickstart
 
 Install django-oci::
