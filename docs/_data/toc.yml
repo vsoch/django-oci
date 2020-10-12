@@ -1,0 +1,33 @@
+- title: Introduction
+  url: docs/introduction
+  children:
+    - title: About
+      url: about
+    - title: Background
+      url: docs/introduction
+    - title: Design
+      url: docs/design
+    - title: Frequently Asked Questions
+      url: docs/faq
+    - title: Policy
+      url: policy
+- title: Getting Started
+  url: docs/introduction
+  children:
+    - title: Install
+      url: docs/getting-started/#install
+    - title: Project Settings
+      url: docs/getting-started/#project-settings
+    - title: Customization Options
+      url: docs/getting-started/options
+    - title: Example Project
+      url: docs/getting-started/example
+    - title: Testing
+      url: docs/getting-started/testing
+- title: Storage
+  url: docs/storage
+  children:
+    - title: Overview
+      url: docs/storage
+- title: News
+  url: news
