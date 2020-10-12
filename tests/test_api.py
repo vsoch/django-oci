@@ -2,19 +2,16 @@
 test_django-oci api
 -------------------
 
-Tests for `django-oci` models module.
+Tests for `django-oci` api.
 """
 
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from django.test import TestCase
-from django.test import Client
 
 from time import sleep
 import subprocess
 import requests
-import threading
 import hashlib
 import json
 import os

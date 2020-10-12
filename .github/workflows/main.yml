@@ -31,14 +31,37 @@ jobs:
 
 
   testing:
-    needs: formatting
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Setup testing environment
         run: conda create --quiet --name testing pytest
 
-      - name: Test django_oci
+      - name: Download opencontainers/distribution-spec
+        uses: actions/checkout@v2
+        with:
+          repository: opencontainers/distribution-spec
+          path: dist-spec
+
+      - name: Set up Go 1.14
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.14
+
+      - name: Set GOPATH
+        run: |
+          # temporary fix for https://github.com/actions/setup-go/issues/14
+          echo "##[set-env name=GOPATH;]$(dirname $GITHUB_WORKSPACE)"
+          echo "##[add-path]$(dirname $GITHUB_WORKSPACE)/bin"
+
+      - name: Compile conformance.test binary
+        run: |
+          cd dist-spec/conformance
+          go mod vendor
+          CGO_ENABLED=0 go test -c -o ../../conformance.test
+          cd ../../
+
+      - name: Test django_oci (python and conformance)
         run: |
           export PATH="/usr/share/miniconda/bin:$PATH"
           source activate testing
