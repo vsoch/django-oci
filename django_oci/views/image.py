@@ -97,6 +97,7 @@ class ImageManifest(APIView):
         "DELETE",
     )
 
+    @never_cache
     def delete(self, request, *args, **kwargs):
         """DELETE /v2/<name>/manifests/<tag>"""
 
@@ -127,6 +128,7 @@ class ImageManifest(APIView):
         # Upon success, the registry MUST respond with a 202 Accepted code.
         return Response(status=202)
 
+    @never_cache
     def put(self, request, *args, **kwargs):
         """PUT /v2/<name>/manifests/<reference>
         https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pushing-manifests
@@ -149,6 +151,7 @@ class ImageManifest(APIView):
         image = get_image_by_tag(name, reference, tag, create=True, body=request.body)
         return Response(status=201, headers={"Location": image.get_manifest_url()})
 
+    @never_cache
     def get(self, request, *args, **kwargs):
         """GET /v2/<name>/manifests/<reference>"""
 

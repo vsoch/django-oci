@@ -18,6 +18,8 @@ limitations under the License.
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from django.views.decorators.cache import never_cache
+
 from django_oci.models import Blob, Repository
 from django_oci import settings
 from django_oci.storage import storage
@@ -42,14 +44,15 @@ class BlobDownload(APIView):
         "DELETE",
     )
 
+    @never_cache
     def get(self, request, *args, **kwargs):
         """POST /v2/<name>/blobs/<digest>"""
-
         # the name is only used to validate the user has permission to upload
         name = kwargs.get("name")
         digest = kwargs.get("digest")
         return storage.download_blob(name, digest)
 
+    @never_cache
     def delete(self, request, *args, **kwargs):
         """DELETE /v2/<name>/blobs/<digest>"""
         name = kwargs.get("name")
@@ -69,6 +72,7 @@ class BlobUpload(APIView):
         "PATCH",
     )
 
+    @never_cache
     def put(self, request, *args, **kwargs):
         """PUT /v2/<name>/blobs/uploads/
         A put request can happen in two scenarios. 1. after a POST request,
@@ -156,6 +160,7 @@ class BlobUpload(APIView):
             digest=digest,
         )
 
+    @never_cache
     def patch(self, request, *args, **kwargs):
         """a patch request is done after a POST with content-length 0 to indicate
         a chunked upload request.
@@ -210,6 +215,7 @@ class BlobUpload(APIView):
             content_length=content_length,
         )
 
+    @never_cache
     def post(self, request, *args, **kwargs):
         """POST /v2/<name>/blobs/uploads/"""
 

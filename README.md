@@ -131,7 +131,7 @@ Then export environment variables that we need for tests:
 ```bash
 # Registry details
 export OCI_ROOT_URL="http://127.0.0.1:8000/"
-export OCI_NAMESPACE="myorg/myrepo"
+export OCI_NAMESPACE="vsoch/django-oci"
 #export OCI_USERNAME="myuser"
 #export OCI_PASSWORD="mypass"
 
