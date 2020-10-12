@@ -66,24 +66,4 @@ jobs:
           export PATH="/usr/share/miniconda/bin:$PATH"
           source activate testing
           pip install -r tests/requirements.txt
-          python manage.py makemigrations django_oci
-          python manage.py makemigrations
-          python manage.py migrate
-          python manage.py migrate django_oci
-
-      - name: Test django_oci Python
-        run: |
-          export PATH="/usr/share/miniconda/bin:$PATH"
-          source activate testing
-          echo ::group::tests.test_api
-          python manage.py test tests.test_api
-          echo ::endgroup::tests.test_api
-          rm db-test.sqlite3
-
-      - name: Conformance Tests
-        run: |
-          export PATH="/usr/share/miniconda/bin:$PATH"
-          source activate testing
-          echo ::group::tests.test_conformance
-          python manage.py test tests.test_conformance
-          echo ::endgroup::tests.test_conformance
+          /bin/bash runtests.sh
