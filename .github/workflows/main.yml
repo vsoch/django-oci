@@ -79,6 +79,10 @@ jobs:
         run: |
           export PATH="/usr/share/miniconda/bin:$PATH"
           source activate testing
+          python manage.py makemigrations django_oci
+          python manage.py makemigrations
+          python manage.py migrate
+          python manage.py migrate django_oci
           echo ::group::tests.test_conformance
           python manage.py test tests.test_conformance
           echo ::endgroup::tests.test_conformance
