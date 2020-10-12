@@ -75,11 +75,15 @@ jobs:
         run: |
           export PATH="/usr/share/miniconda/bin:$PATH"
           source activate testing
+          echo ::group::tests.test_api
           python manage.py test tests.test_api
+          echo ::endgroup::tests.test_api
           rm db-test.sqlite3
 
       - name: Conformance Tests
         run: |
           export PATH="/usr/share/miniconda/bin:$PATH"
           source activate testing
+          echo ::group::tests.test_conformance
           python manage.py test tests.test_conformance
+          echo ::endgroup::tests.test_conformance
