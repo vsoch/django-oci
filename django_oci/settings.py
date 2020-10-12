@@ -37,7 +37,7 @@ DEFAULTS = {
     "IMAGE_MANIFEST_CONTENT_TYPE": "application/vnd.oci.image.manifest.v1+json",
     # Storage backend
     "STORAGE_BACKEND": "filesystem",
-    # Storage backend
+    # Domain used in templates, api prefix
     "DOMAIN_URL": "http://127.0.0.1:8000",
     # Media root (if saving images on filesystem
     "MEDIA_ROOT": "images",

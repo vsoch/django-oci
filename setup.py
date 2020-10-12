@@ -38,7 +38,7 @@ setup(
         'django_oci',
     ],
     include_package_data=True,
-    install_requires=["djangorestframework", "opencontainers"],
+    install_requires=["djangorestframework"],
     license="Apache Software License 2.0",
     zip_safe=False,
     keywords='django-oci',
