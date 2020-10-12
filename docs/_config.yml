@@ -33,6 +33,7 @@ baseurl: "/django-oci" # the subpath of your site, e.g. /blog
 
 # This is mostly for testing
 url: "" # the base hostname & protocol for your site
+weburl: https://vsoch.github.io/django-oci
 
 # Social (First three Required)
 repo: "https://github.com/vsoch/django-oci"
