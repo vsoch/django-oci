@@ -93,6 +93,7 @@ class ChunkedUpload(models.Model):
         # Write chunk (mode = append+binary)
         with open(self.file.path, mode="ab") as fd:
             fd.write(chunk)
+        print(f"FILEPATH {self.file.path}")
 
         # Update the offset
         self.offset += len(chunk)

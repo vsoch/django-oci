@@ -16,18 +16,18 @@ limitations under the License.
 
 """
 
+from django.core.files.storage import FileSystemStorage
 from django_oci import settings
 from django.urls import reverse
 from django.db import models, IntegrityError
 from django.contrib.auth.models import User
-from django.db.models.signals import post_delete
-
 from django.middleware import cache
 import uuid
 
 import hashlib
 import json
 import os
+import re
 import uuid
 
 PRIVACY_CHOICES = (
@@ -38,6 +38,23 @@ PRIVACY_CHOICES = (
 
 def get_privacy_default():
     return settings.PRIVATE_ONLY
+
+
+class OverwriteStorage(FileSystemStorage):
+    def get_available_name(self, name, **kwargs):
+        """Define a new filesystem storage so that it's okay to overwrite an
+        existing filename.
+        """
+        if self.exists(name):
+            os.remove(name)
+        return name
+
+    def get_valid_name(self, name, **kwargs):
+        """The default function will replace the : in the filename (removing it)
+        but we want to allow it.
+        """
+        name = str(name).strip().replace(" ", "_")
+        return re.sub(r"(?u)[^-\w.:]", "", name)
 
 
 def calculate_digest(body):
@@ -53,8 +70,8 @@ def get_upload_folder(instance, filename):
     blobs_home = os.path.join(settings.MEDIA_ROOT, "blobs", repository_name)
     if not os.path.exists(blobs_home):
         os.makedirs(blobs_home)
-
-    return os.path.join(blobs_home, filename)
+    filename = os.path.join(blobs_home, filename)
+    return filename
 
 
 def get_image_by_tag(name, reference, tag, create=False, body=None):
@@ -169,7 +186,9 @@ class Blob(models.Model):
     modify_date = models.DateTimeField("date modified", auto_now=True)
     content_type = models.CharField(max_length=250, null=False)
     digest = models.CharField(max_length=250, null=True, blank=True)
-    datafile = models.FileField(upload_to=get_upload_folder, max_length=255)
+    datafile = models.FileField(
+        upload_to=get_upload_folder, max_length=255, storage=OverwriteStorage()
+    )
     remotefile = models.CharField(max_length=500, null=True, blank=True)
 
     # When a repository is deleted, so are the blobs
@@ -367,6 +386,9 @@ class Tag(models.Model):
         # When a manifest is deleted, any associated tags are too
         on_delete=models.CASCADE,
     )
+
+    def __str__(self):
+        return "<tag:%s>" % self.name
 
 
 class Annotation(models.Model):

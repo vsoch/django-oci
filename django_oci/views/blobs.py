@@ -37,7 +37,10 @@ class BlobDownload(APIView):
     """Given a GET request for a blob, stream the blob."""
 
     permission_classes = []
-    allowed_methods = ("GET",)
+    allowed_methods = (
+        "GET",
+        "DELETE",
+    )
 
     def get(self, request, *args, **kwargs):
         """POST /v2/<name>/blobs/<digest>"""
@@ -46,6 +49,12 @@ class BlobDownload(APIView):
         name = kwargs.get("name")
         digest = kwargs.get("digest")
         return storage.download_blob(name, digest)
+
+    def delete(self, request, *args, **kwargs):
+        """DELETE /v2/<name>/blobs/<digest>"""
+        name = kwargs.get("name")
+        digest = kwargs.get("digest")
+        return storage.delete_blob(name, digest)
 
 
 class BlobUpload(APIView):

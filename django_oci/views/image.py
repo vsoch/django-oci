@@ -20,10 +20,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from django.http.response import Http404, HttpResponse
+from django.views.decorators.cache import never_cache
+
 from django_oci.models import Repository, Image, get_image_by_tag
 from django_oci import settings
 from django_oci.storage import storage
 from .parsers import ManifestRenderer
+
 
 import os
 
@@ -39,6 +42,7 @@ class ImageTags(APIView):
     permission_classes = []
     allowed_methods = ("GET",)
 
+    @never_cache
     def get(self, request, *args, **kwargs):
         """GET /v2/<name>/tags/list"""
         name = kwargs.get("name")
@@ -58,6 +62,10 @@ class ImageTags(APIView):
 
         # Tags must be sorted in lexical order
         tags.sort()
+
+        # Number must be an integer if defined
+        if number:
+            number = int(number)
 
         # if last, <tagname> not included in the results, but up to <int> tags after <tagname> will be returned.
         if last and number:
@@ -99,6 +107,8 @@ class ImageManifest(APIView):
         name = kwargs.get("name")
         reference = kwargs.get("reference")
         tag = kwargs.get("tag")
+
+        from django_oci.models import Tag
 
         # Retrieve the image, return of None indicates not found
         image = get_image_by_tag(name, reference=reference, tag=tag, create=False)

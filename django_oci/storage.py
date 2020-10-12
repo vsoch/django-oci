@@ -150,7 +150,6 @@ class FileSystemStorage(StorageBase):
         except:
             pass
 
-        # Update blob body if doesn't exist
         if not blob.datafile:
             datafile = SimpleUploadedFile(
                 calculated_digest, body, content_type=content_type
@@ -158,6 +157,7 @@ class FileSystemStorage(StorageBase):
             blob.datafile = datafile
 
         # The digest is updated here if it was previously a session id
+        lookhere = os.path.join(settings.MEDIA_ROOT, "blobs", blob.repository.name)
         blob.content_type = content_type
         blob.digest = digest
         blob.save()
@@ -243,7 +243,6 @@ class FileSystemStorage(StorageBase):
         except Blob.DoesNotExist:
             raise Http404
 
-        # TODO Need to have delete of blob.datafile.name on blob delete
         if os.path.exists(blob.datafile.name):
             with open(blob.datafile.name, "rb") as fh:
                 response = HttpResponse(fh.read(), content_type=blob.content_type)
@@ -254,6 +253,17 @@ class FileSystemStorage(StorageBase):
 
         # If we get here, file doesn't exist
         raise Http404
+
+    def delete_blob(self, name, digest):
+        """Given a blob repository name and digest, delete and return success (202)."""
+        try:
+            blob = Blob.objects.get(digest=digest, repository__name=name)
+        except Blob.DoesNotExist:
+            raise Http404
+
+        # Delete the blob, will eventually need to check permissions
+        blob.delete()
+        return Response(status=202)
 
 
 # Load storage on application init
