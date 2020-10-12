@@ -51,8 +51,8 @@ jobs:
       - name: Set GOPATH
         run: |
           # temporary fix for https://github.com/actions/setup-go/issues/14
-          echo "##[set-env name=GOPATH;]$(dirname $GITHUB_WORKSPACE)"
-          echo "##[add-path]$(dirname $GITHUB_WORKSPACE)/bin"
+          echo "GOPATH=$(dirname $GITHUB_WORKSPACE)" >> $GITHUB_ENV
+          echo "PATH=$(dirname $GITHUB_WORKSPACE)/bin:${PATH}" >> $GITHUB_PATH
 
       - name: Compile conformance.test binary
         run: |
@@ -61,9 +61,25 @@ jobs:
           CGO_ENABLED=0 go test -c -o ../../conformance.test
           cd ../../
 
-      - name: Test django_oci (python and conformance)
+      - name: Setup Django Test
         run: |
           export PATH="/usr/share/miniconda/bin:$PATH"
           source activate testing
           pip install -r tests/requirements.txt
-          /bin/bash runtests.sh
+          python manage.py makemigrations django_oci
+          python manage.py makemigrations
+          python manage.py migrate
+          python manage.py migrate django_oci
+
+      - name: Test django_oci Python
+        run: |
+          export PATH="/usr/share/miniconda/bin:$PATH"
+          source activate testing
+          python manage.py test tests.test_api
+          rm db-test.sqlite3
+
+      - name: Conformance Tests
+        run: |
+          export PATH="/usr/share/miniconda/bin:$PATH"
+          source activate testing
+          python manage.py test tests.test_conformance
