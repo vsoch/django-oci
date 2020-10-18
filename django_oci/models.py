@@ -22,13 +22,13 @@ from django.urls import reverse
 from django.db import models, IntegrityError
 from django.contrib.auth.models import User
 from django.middleware import cache
-import uuid
 
 import hashlib
 import json
 import os
 import re
 import uuid
+
 
 PRIVACY_CHOICES = (
     (False, "Public (The collection will be accessible by anyone)"),
@@ -159,6 +159,9 @@ class Repository(models.Model):
         default=get_privacy_default,
         verbose_name="Accessibility",
     )
+
+    def has_view_permission(self, user):
+        return user in self.owners.all() or user in self.contributors.all()
 
     def get_absolute_url(self):
         return reverse("repository_details", args=[str(self.id)])

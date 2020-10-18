@@ -26,7 +26,7 @@ from django_oci.models import Repository, Image, get_image_by_tag
 from django_oci import settings
 from django_oci.storage import storage
 from .parsers import ManifestRenderer
-
+from .auth import get_token, get_challenge
 
 import os
 
@@ -44,7 +44,9 @@ class ImageTags(APIView):
 
     @never_cache
     def get(self, request, *args, **kwargs):
-        """GET /v2/<name>/tags/list"""
+        """GET /v2/<name>/tags/list. We don't require authentication to list tags,
+           unless the repository is private.
+        """
         name = kwargs.get("name")
         number = request.GET.get("n")
         last = request.GET.get("last")
@@ -53,6 +55,12 @@ class ImageTags(APIView):
             repository = Repository.objects.get(name=name)
         except Repository.DoesNotExist:
             raise Http404
+
+        # If the repository is private, require authentication
+        if repository.private:
+            token = get_token(request)
+            if not repository.has_view_permission(token.user):
+                return Response(status=401, headers={"Www-Authenticate": get_challenge(repository.name, scopes="pull")})
 
         tags = [
             x
