@@ -59,8 +59,14 @@ urlpatterns = [
         views.BlobUpload.as_view(),
         name="blob_upload",
     ),
+    # Listed twice, once with and once without trailing slash
     path(
         "%s/<path:session_id>/blobs/upload/" % settings.URL_PREFIX,
+        views.BlobUpload.as_view(),
+        name="blob_upload",
+    ),
+    path(
+        "%s/<path:session_id>/blobs/upload" % settings.URL_PREFIX,
         views.BlobUpload.as_view(),
         name="blob_upload",
     ),
