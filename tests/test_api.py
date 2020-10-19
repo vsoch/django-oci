@@ -67,7 +67,7 @@ class APIBaseTests(APITestCase):
 
     def test_api_version_check(self):
         """
-        GET of /v2 should return a 200 response
+        GET of /v2 should return a 200 response.
         """
         url = reverse("django_oci:api_version_check")
         response = self.client.get(url, format="json")
