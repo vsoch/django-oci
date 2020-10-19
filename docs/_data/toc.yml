@@ -22,6 +22,8 @@
       url: docs/getting-started/options
     - title: Example Project
       url: docs/getting-started/example
+    - title: Example Client
+      url: docs/getting-started/reggie
     - title: Testing
       url: docs/getting-started/testing
 - title: Storage

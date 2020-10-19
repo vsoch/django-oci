@@ -67,7 +67,7 @@ class APIBaseTests(APITestCase):
 
     def test_api_version_check(self):
         """
-        GET of /v2 should return a 200 response
+        GET of /v2 should return a 200 response.
         """
         url = reverse("django_oci:api_version_check")
         response = self.client.get(url, format="json")
@@ -94,7 +94,6 @@ class APIPushTests(APITestCase):
         """
         POST /v2/<name>/blobs/uploads/
         """
-
         def push(digest, data, content_type="application/octet-stream"):
             url = "http://127.0.0.1:8000%s?digest=%s" % (
                 reverse("django_oci:blob_upload", kwargs={"name": self.repository}),
@@ -170,7 +169,7 @@ class APIPushTests(APITestCase):
         url = "http://127.0.0.1:8000%s" % (
             reverse("django_oci:blob_upload", kwargs={"name": self.repository})
         )
-        print("POST to request chunked session: %s" % url)
+        print("POST to request chunked session: %s" % url)        
         headers = {"Content-Type": "application/octet-stream", "Content-Length": "0"}
         response = requests.post(url, headers=headers)
 
