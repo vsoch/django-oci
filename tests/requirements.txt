@@ -2,3 +2,4 @@ django
 djangorestframework
 opencontainers
 requests
+pyjwt==1.7.1
