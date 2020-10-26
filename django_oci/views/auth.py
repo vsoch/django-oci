@@ -21,16 +21,12 @@ from rest_framework.response import Response
 from rest_framework.decorators import authentication_classes, permission_classes
 from django.views.decorators.cache import never_cache
 
-from django_oci.models import Blob, Repository
 from django_oci import settings
-from django_oci.storage import storage
-from django.middleware import cache
 from django.http import HttpResponseForbidden
 
 from django_oci.utils import get_server
-from django_oci.auth import is_authenticated, get_token, get_user, generate_jwt
+from django_oci.auth import get_user, generate_jwt
 
-import os
 import re
 
 
@@ -53,7 +49,7 @@ class GetAuthToken(APIView):
             return HttpResponseForbidden()
 
         # Formalate the jwt token response, with a unique id
-        service = request.GET.get("service")
+        _ = request.GET.get("service")
         scope = request.GET.get("scope")
 
         # The scope should include the repository name, and permissions

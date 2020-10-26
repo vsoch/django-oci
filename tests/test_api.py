@@ -24,13 +24,11 @@ import re
 here = os.path.abspath(os.path.dirname(__file__))
 
 # Boolean from environment that determines authentication required variable
-requires_auth = os.environ.get("DISABLE_AUTHENTICATION") is None
 auth_regex = re.compile('(\w+)[:=] ?"?([^"]+)"?')
 
 # Important: user needs to be created globally to be seen
-if requires_auth:
-    user = User.objects.create(username="dinosaur")
-    token = str(user.auth_token)
+user, _ = User.objects.get_or_create(username="dinosaur")
+token = str(user.auth_token)
 
 
 def calculate_digest(blob):
@@ -154,7 +152,7 @@ class APIPushTests(APITestCase):
             )
         return response
 
-    def push_post_then_put(self, with_auth=False):
+    def test_push_post_then_put(self):
         """
         POST /v2/<name>/blobs/uploads/
         PUT /v2/<name>/blobs/uploads/
@@ -165,11 +163,9 @@ class APIPushTests(APITestCase):
         print("POST to request session: %s" % url)
         headers = {"Content-Type": "application/octet-stream"}
         response = requests.post(url, headers=headers)
-        auth_headers = {}
-        if with_auth:
-            auth_headers = get_authentication_headers(response)
-            headers.update(auth_headers)
-            response = requests.post(url, headers=headers)
+        auth_headers = get_authentication_headers(response)
+        headers.update(auth_headers)
+        response = requests.post(url, headers=headers)
 
         # Location must be in response header
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
@@ -195,7 +191,7 @@ class APIPushTests(APITestCase):
         response = requests.get(download_url, headers=auth_headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def push_chunked(self, with_auth=False):
+    def test_push_chunked(self):
         """
         POST /v2/<name>/blobs/uploads/
         PATCH <location>
@@ -207,11 +203,9 @@ class APIPushTests(APITestCase):
         print("POST to request chunked session: %s" % url)
         headers = {"Content-Type": "application/octet-stream", "Content-Length": "0"}
         response = requests.post(url, headers=headers)
-        auth_headers = {}
-        if with_auth:
-            auth_headers = get_authentication_headers(response)
-            headers.update(auth_headers)
-            response = requests.post(url, headers=headers)
+        auth_headers = get_authentication_headers(response)
+        headers.update(auth_headers)
+        response = requests.post(url, headers=headers)
 
         # Location must be in response header
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
@@ -247,7 +241,7 @@ class APIPushTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue("Location" in response.headers)
 
-    def push_view_delete_manifest(self, with_auth=False):
+    def test_push_view_delete_manifest(self):
         """
         PUT /v2/<name>/manifests/<reference>
         DELETE /v2/<name>/manifests/<reference>
@@ -273,11 +267,10 @@ class APIPushTests(APITestCase):
             "Content-Length": str(len(manifest)),
         }
         response = requests.put(url, headers=headers, data=manifest)
-        auth_headers = {}
-        if with_auth:
-            auth_headers = get_authentication_headers(response)
-            headers.update(auth_headers)
-            response = requests.put(url, headers=headers, data=manifest)
+
+        auth_headers = get_authentication_headers(response)
+        headers.update(auth_headers)
+        response = requests.put(url, headers=headers, data=manifest)
 
         # Location must be in response header
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -313,21 +306,19 @@ class APIPushTests(APITestCase):
         response = requests.delete(url, headers=auth_headers)
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
 
-    def push_single_monolithic_post(self, with_auth=False):
+    def test_push_single_monolithic_post(self):
         """
         POST /v2/<name>/blobs/uploads/
         """
         # Push the image blob, should return 401 without authentication
         response = self.push(digest=self.digest, data=self.data, test_response=False)
-        headers = {}
-        if with_auth:
-            headers = get_authentication_headers(response)
-            response = self.push(
-                digest=self.digest,
-                data=self.data,
-                test_response=False,
-                extra_headers=headers,
-            )
+        headers = get_authentication_headers(response)
+        response = self.push(
+            digest=self.digest,
+            data=self.data,
+            test_response=False,
+            extra_headers=headers,
+        )
         assert response.status_code == 201
         assert "Location" in response.headers
         download_url = response.headers["Location"]
@@ -354,35 +345,3 @@ class APIPushTests(APITestCase):
             self.data = fd.read()
         self._digest = calculate_digest(self.data)
         self.digest = "sha256:%s" % self._digest
-
-    @skipIf(requires_auth, "Authentication required")
-    def test_push_single_monolithic_post(self):
-        return self.push_single_monolithic_post(with_auth=False)
-
-    @skipIf(not requires_auth, "This test requires authentication and will be skipped")
-    def test_push_single_monolithic_post_authenticated(self):
-        return self.push_single_monolithic_post(with_auth=True)
-
-    @skipIf(requires_auth, "Authentication required")
-    def test_push_post_then_put(self):
-        return self.push_post_then_put(with_auth=False)
-
-    @skipIf(not requires_auth, "This test requires authentication and will be skipped")
-    def test_push_post_then_put_authenticated(self):
-        return self.push_post_then_put(with_auth=True)
-
-    @skipIf(requires_auth, "Authentication required")
-    def test_push_chunked(self):
-        return self.push_chunked(with_auth=False)
-
-    @skipIf(not requires_auth, "This test requires authentication and will be skipped")
-    def test_push_chunked_authenticated(self):
-        return self.push_chunked(with_auth=True)
-
-    @skipIf(requires_auth, "Authentication required")
-    def test_push_view_delete_manifest(self):
-        return self.push_view_delete_manifest(with_auth=False)
-
-    @skipIf(not requires_auth, "This test requires authentication and will be skipped")
-    def test_push_view_delete_manifest_authenticated(self):
-        return self.push_view_delete_manifest(with_auth=True)

@@ -18,17 +18,14 @@ limitations under the License.
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
-from django.http.response import Http404, HttpResponse
+from rest_framework.renderers import JSONRenderer
+from django.http.response import Http404
 from django.views.decorators.cache import never_cache
 
-from django_oci.models import Repository, Image, get_image_by_tag
+from django_oci.models import Repository, get_image_by_tag
 from django_oci import settings
-from django_oci.storage import storage
 from .parsers import ManifestRenderer
 from django_oci.auth import is_authenticated
-
-import os
 
 # from opencontainers.image.v1.manifest import Manifest
 # from rest_framework import generics, serializers, viewsets, status
@@ -123,8 +120,6 @@ class ImageManifest(APIView):
         if not allow_continue:
             return response
 
-        from django_oci.models import Tag
-
         # Retrieve the image, return of None indicates not found
         image = get_image_by_tag(name, reference=reference, tag=tag, create=False)
         if not image:
@@ -148,10 +143,9 @@ class ImageManifest(APIView):
         https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pushing-manifests
         """
         # We likely can default to the v1 manifest, unless otherwise specified
+        # This isn't used or checked for the time being
         # application/vnd.oci.image.manifest.v1+json
-        content_type = request.META.get(
-            "CONTENT_TYPE", settings.IMAGE_MANIFEST_CONTENT_TYPE
-        )
+        _ = request.META.get("CONTENT_TYPE", settings.IMAGE_MANIFEST_CONTENT_TYPE)
 
         name = kwargs.get("name")
         reference = kwargs.get("reference")

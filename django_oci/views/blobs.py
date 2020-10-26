@@ -26,14 +26,7 @@ from django_oci.storage import storage
 from django.middleware import cache
 
 from django_oci.utils import parse_content_range
-from django_oci.auth import is_authenticated, get_token
-
-import os
-
-
-# from rest_framework import generics, serializers, viewsets, status
-# from rest_framework.exceptions import PermissionDenied, NotFound
-# from ratelimit.mixins import RatelimitMixin
+from django_oci.auth import is_authenticated
 
 
 class BlobDownload(APIView):
@@ -135,6 +128,8 @@ class BlobUpload(APIView):
         allow_continue, response, _ = is_authenticated(
             request, blob.repository, must_be_owner=True
         )
+        print(allow_continue)
+        print(response)
         if not allow_continue:
             return response
 

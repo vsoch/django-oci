@@ -19,10 +19,11 @@ limitations under the License.
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
 from django_oci.settings import MEDIA_ROOT
-from io import BytesIO
 from django.db import models
+from datetime import timezone
 
 import os
+import hashlib
 
 
 class ChunkedUpload(models.Model):
@@ -42,7 +43,7 @@ class ChunkedUpload(models.Model):
 
     @property
     def expires_on(self):
-        return self.created_on + EXPIRATION_DELTA
+        return self.created_on + 10000
 
     @property
     def expired(self):

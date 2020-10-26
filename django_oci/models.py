@@ -19,7 +19,7 @@ limitations under the License.
 from django.core.files.storage import FileSystemStorage
 from django_oci import settings
 from django.urls import reverse
-from django.db import models, IntegrityError
+from django.db import models
 from django.contrib.auth.models import User
 from django.middleware import cache
 
@@ -27,7 +27,6 @@ import hashlib
 import json
 import os
 import re
-import uuid
 
 
 PRIVACY_CHOICES = (

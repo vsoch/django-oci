@@ -24,8 +24,6 @@ from django_oci.models import Repository
 
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
-from rest_framework import authentication
-from rest_framework import exceptions
 
 from django.middleware import cache
 

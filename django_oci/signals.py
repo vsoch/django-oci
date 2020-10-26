@@ -17,12 +17,11 @@ limitations under the License.
 """
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
-from .models import Image, Blob
+from .models import Image
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import get_user_model
 
 UserModel = get_user_model()
-import os
 
 
 @receiver(post_delete, sender=Image)

@@ -1,5 +1,6 @@
 # django-oci
 
+[![PyPI version](https://badge.fury.io/py/django-oci.svg)](https://badge.fury.io/py/django-oci)
 ![docs/assets/img/django-oci.png](docs/assets/img/django-oci.png)
 
 Open Containers distribution API for Django. 

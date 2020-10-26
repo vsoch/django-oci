@@ -84,7 +84,7 @@ DJANGO_OCI = {
     "SPEC_VERSION": "1",
     # Repository permissions
     "PRIVATE_ONLY": False,
-    # Disabled authentication controllable by environment for tests
+    # Disabled authentication, boolean triggered by environment for testing
     "DISABLE_AUTHENTICATION": os.environ.get("DISABLE_AUTHENTICATION") is not None,
     # "secret" for jwt decoding, hard coded for tests here. Likely you'd want to set in enviroment
     "JWT_SERVER_SECRET": "c4978944-8ea4-41f2-ac55-e38dcc09cff4'",

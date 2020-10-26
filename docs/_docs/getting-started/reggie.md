@@ -39,6 +39,9 @@ source env/bin/activate
 pip install -r requirements.txt
 pip install opencontainers
 
+# Disable authentication for the demo
+export DISABLE_AUTHENTICATION=yes
+
 # Database migrations
 python manage.py makemigrations
 python manage.py makemigrations django_oci
