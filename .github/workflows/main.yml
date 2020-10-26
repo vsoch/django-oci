@@ -84,5 +84,5 @@ jobs:
           python manage.py migrate
           python manage.py migrate django_oci
           echo ::group::tests.test_conformance
-          python manage.py test tests.test_conformance
+          DISABLE_AUTHENTICATION=yes python manage.py test tests.test_conformance
           echo ::endgroup::tests.test_conformance
