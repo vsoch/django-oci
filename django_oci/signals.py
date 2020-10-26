@@ -20,8 +20,10 @@ from django.dispatch import receiver
 from .models import Image, Blob
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import get_user_model
+
 UserModel = get_user_model()
 import os
+
 
 @receiver(post_delete, sender=Image)
 def delete_blobs(sender, instance, **kwargs):

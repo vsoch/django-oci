@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django_oci",
     "rest_framework",
+    "rest_framework.authtoken",
 ]
 
 MIDDLEWARE = [
@@ -76,15 +77,17 @@ DATABASES = {
 
 # Django OCI Example (with defaults_
 
-DEFAULTS = {
+DJANGO_OCI = {
     # Url base prefix
     "URL_PREFIX": "v2",
     # Version of distribution spec
     "SPEC_VERSION": "1",
     # Repository permissions
     "PRIVATE_ONLY": False,
-    # Authentication (only define if you have special user class)
-    # 'AUTHENTICATED_USER': 'my_app.User',
+    # Disabled authentication controllable by environment for tests
+    "DISABLE_AUTHENTICATION": os.environ.get("DISABLE_AUTHENTICATION") is not None,
+    # "secret" for jwt decoding, hard coded for tests here. Likely you'd want to set in enviroment
+    "JWT_SERVER_SECRET": "c4978944-8ea4-41f2-ac55-e38dcc09cff4'",
 }
 
 # Password validation

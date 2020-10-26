@@ -138,14 +138,14 @@ class Repository(models.Model):
     add_date = models.DateTimeField("date added", auto_now_add=True)
     modify_date = models.DateTimeField("date modified", auto_now=True)
     owners = models.ManyToManyField(
-        settings.AUTHENTICATED_USER or User,
+        User,
         blank=True,
         default=None,
         related_name="container_collection_owners",
         related_query_name="owners",
     )
     contributors = models.ManyToManyField(
-        settings.AUTHENTICATED_USER or User,
+        User,
         related_name="container_collection_contributors",
         related_query_name="contributor",
         blank=True,

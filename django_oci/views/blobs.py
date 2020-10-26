@@ -26,6 +26,7 @@ from django_oci.storage import storage
 from django.middleware import cache
 
 from django_oci.utils import parse_content_range
+from django_oci.auth import is_authenticated, get_token
 
 import os
 
@@ -50,6 +51,12 @@ class BlobDownload(APIView):
         # the name is only used to validate the user has permission to upload
         name = kwargs.get("name")
         digest = kwargs.get("digest")
+
+        # If allow_continue False, return response
+        allow_continue, response, _ = is_authenticated(request, name)
+        if not allow_continue:
+            return response
+
         return storage.download_blob(name, digest)
 
     @never_cache
@@ -57,6 +64,14 @@ class BlobDownload(APIView):
         """DELETE /v2/<name>/blobs/<digest>"""
         name = kwargs.get("name")
         digest = kwargs.get("digest")
+
+        # If allow_continue False, return response
+        allow_continue, response, _ = is_authenticated(
+            request, name, must_be_owner=True
+        )
+        if not allow_continue:
+            return response
+
         return storage.delete_blob(name, digest)
 
 
@@ -115,6 +130,13 @@ class BlobUpload(APIView):
             blob = Blob.objects.get(id=blob_id, digest=version)
         except Blob.DoesNotExist:
             return Response(status=404)
+
+        # If allow_continue False, return response
+        allow_continue, response, _ = is_authenticated(
+            request, blob.repository, must_be_owner=True
+        )
+        if not allow_continue:
+            return response
 
         if not content_range and request.body:
 
@@ -201,6 +223,12 @@ class BlobUpload(APIView):
         except Blob.DoesNotExist:
             return Response(status=404)
 
+        allow_continue, response, _ = is_authenticated(
+            request, blob.repository, must_be_owner=True
+        )
+        if not allow_continue:
+            return response
+
         # Update the blob content_type TODO: There should be some check
         # to ensure that a next chunk content type is not different from that
         # already defined
@@ -230,8 +258,28 @@ class BlobUpload(APIView):
         if content_length in [None, ""]:
             return Response(status=411)
 
-        # Get or create repository (TODO:will need to validate user permissions here)
+        # Validate user having a token, no repository required
+        allow_continue, response, user = is_authenticated(
+            request, name, repository_exists=False
+        )
+        if not allow_continue:
+            return response
+
+        # Get or create repository
         repository, created = Repository.objects.get_or_create(name=name)
+
+        # If created, add user to owners
+        if created:
+            repository.owners.add(user)
+            repository.save()
+
+        # Otherwise, must be an owner
+        else:
+            allow_continue, response, _ = is_authenticated(
+                request, repository, must_be_owner=True
+            )
+            if not allow_continue:
+                return response
 
         # Case 1: POST provided with digest == single monolithic upload
         # /v2/<name>/blobs/uploads/?digest=<digest>

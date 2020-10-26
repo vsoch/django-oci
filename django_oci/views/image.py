@@ -26,7 +26,7 @@ from django_oci.models import Repository, Image, get_image_by_tag
 from django_oci import settings
 from django_oci.storage import storage
 from .parsers import ManifestRenderer
-from .auth import get_token, get_challenge
+from django_oci.auth import is_authenticated
 
 import os
 
@@ -45,7 +45,7 @@ class ImageTags(APIView):
     @never_cache
     def get(self, request, *args, **kwargs):
         """GET /v2/<name>/tags/list. We don't require authentication to list tags,
-           unless the repository is private.
+        unless the repository is private.
         """
         name = kwargs.get("name")
         number = request.GET.get("n")
@@ -56,11 +56,10 @@ class ImageTags(APIView):
         except Repository.DoesNotExist:
             raise Http404
 
-        # If the repository is private, require authentication
-        if repository.private:
-            token = get_token(request)
-            if not repository.has_view_permission(token.user):
-                return Response(status=401, headers={"Www-Authenticate": get_challenge(repository.name, scopes="pull")})
+        # If allow_continue False, return response
+        allow_continue, response, _ = is_authenticated(request, repository)
+        if not allow_continue:
+            return response
 
         tags = [
             x
@@ -117,6 +116,13 @@ class ImageManifest(APIView):
         reference = kwargs.get("reference")
         tag = kwargs.get("tag")
 
+        # If allow_continue False, return response
+        allow_continue, response, _ = is_authenticated(
+            request, name, must_be_owner=True
+        )
+        if not allow_continue:
+            return response
+
         from django_oci.models import Tag
 
         # Retrieve the image, return of None indicates not found
@@ -151,12 +157,27 @@ class ImageManifest(APIView):
         reference = kwargs.get("reference")
         tag = kwargs.get("tag")
 
+        # If allow_continue False, return response
+        allow_continue, response, _ = is_authenticated(
+            request, name, must_be_owner=True
+        )
+        if not allow_continue:
+            return response
+
         # Reference must be sha256 digest
         if reference and not reference.startswith("sha256:"):
             return Response(status=400)
 
         # Also provide the body in case we have a tag
         image = get_image_by_tag(name, reference, tag, create=True, body=request.body)
+
+        # If allow_continue False, return response
+        allow_continue, response, _ = is_authenticated(
+            request, image.repository, must_be_owner=True
+        )
+        if not allow_continue:
+            return response
+
         return Response(status=201, headers={"Location": image.get_manifest_url()})
 
     @never_cache
@@ -166,6 +187,11 @@ class ImageManifest(APIView):
         name = kwargs.get("name")
         reference = kwargs.get("reference")
         tag = kwargs.get("tag")
+
+        # If allow_continue False, return response
+        allow_continue, response, _ = is_authenticated(request, name)
+        if not allow_continue:
+            return response
 
         image = get_image_by_tag(name, tag=tag, reference=reference)
 

@@ -6,17 +6,31 @@ Tests for `django-oci` api.
 """
 
 from django.urls import reverse
+from django.contrib.auth.models import User
+from django_oci import settings
 from rest_framework import status
 from rest_framework.test import APITestCase
-
+from django.test.utils import override_settings
 from time import sleep
+from unittest import skipIf
 import subprocess
 import requests
 import hashlib
+import base64
 import json
 import os
+import re
 
 here = os.path.abspath(os.path.dirname(__file__))
+
+# Boolean from environment that determines authentication required variable
+requires_auth = os.environ.get("DISABLE_AUTHENTICATION") is None
+auth_regex = re.compile('(\w+)[:=] ?"?([^"]+)"?')
+
+# Important: user needs to be created globally to be seen
+if requires_auth:
+    user = User.objects.create(username="dinosaur")
+    token = str(user.auth_token)
 
 
 def calculate_digest(blob):
@@ -24,6 +38,45 @@ def calculate_digest(blob):
     hasher = hashlib.sha256()
     hasher.update(blob)
     return hasher.hexdigest()
+
+
+def get_auth_header(username, password):
+    """django oci requires the user token as the password to generate a longer
+    auth token that will expire after some number of seconds
+    """
+    auth_str = "%s:%s" % (username, password)
+    auth_header = base64.b64encode(auth_str.encode("utf-8"))
+    return {"Authorization": "Basic %s" % auth_header.decode("utf-8")}
+
+
+def get_authentication_headers(response):
+    """Given a requests.Response, assert that it has status code 401 and
+    provides the Www-Authenticate header that can be parsed for the request
+    """
+    assert response.status_code == 401
+    assert "Www-Authenticate" in response.headers
+    matches = dict(auth_regex.findall(response.headers["Www-Authenticate"]))
+    for key in ["scope", "realm", "service"]:
+        assert key in matches
+
+    # Prepare authentication headers and get token
+    headers = get_auth_header(user.username, token)
+    url = "%s?service=%s&scope=%s" % (
+        matches["realm"],
+        matches["service"],
+        matches["scope"],
+    )
+    # With proper headers should be 200
+    auth_response = requests.get(url, headers=headers)
+    assert auth_response.status_code == 200
+    body = auth_response.json()
+
+    # Make sure we have the expected fields
+    for key in ["token", "expires_in", "issued_at"]:
+        assert key in body
+
+    # Formulate new auth header
+    return {"Authorization": "Bearer %s" % body["token"]}
 
 
 def read_in_chunks(image, chunk_size=1024):
@@ -75,58 +128,33 @@ class APIBaseTests(APITestCase):
 
 
 class APIPushTests(APITestCase):
-    def setUp(self):
-        self.repository = "vanessa/container"
-        self.image = os.path.abspath(
-            os.path.join(here, "..", "examples", "singularity", "busybox_latest.sif")
+    def push(
+        self,
+        digest,
+        data,
+        content_type="application/octet-stream",
+        test_response=True,
+        extra_headers={},
+    ):
+        url = "http://127.0.0.1:8000%s?digest=%s" % (
+            reverse("django_oci:blob_upload", kwargs={"name": self.repository}),
+            digest,
         )
-        self.config = os.path.abspath(
-            os.path.join(here, "..", "examples", "singularity", "config.json")
-        )
-
-        # Read binary data and calculate sha256 digest
-        with open(self.image, "rb") as fd:
-            self.data = fd.read()
-        self._digest = calculate_digest(self.data)
-        self.digest = "sha256:%s" % self._digest
-
-    def test_push_single_monolithic_post(self):
-        """
-        POST /v2/<name>/blobs/uploads/
-        """
-
-        def push(digest, data, content_type="application/octet-stream"):
-            url = "http://127.0.0.1:8000%s?digest=%s" % (
-                reverse("django_oci:blob_upload", kwargs={"name": self.repository}),
-                digest,
-            )
-            print("Single Monolithic POST: %s" % url)
-            headers = {
-                "Content-Length": str(len(data)),
-                "Content-Type": content_type,
-            }
-            response = requests.post(url, data=data, headers=headers)
+        print("Single Monolithic POST: %s" % url)
+        headers = {
+            "Content-Length": str(len(data)),
+            "Content-Type": content_type,
+        }
+        headers.update(extra_headers)
+        response = requests.post(url, data=data, headers=headers)
+        if test_response:
             self.assertTrue(
                 response.status_code
                 in [status.HTTP_202_ACCEPTED, status.HTTP_201_CREATED]
             )
-            return response
+        return response
 
-        # Push the image blob
-        response = push(digest=self.digest, data=self.data)
-
-        # Test pull of blob
-        download_url = response.headers["Location"]
-        response = requests.get(download_url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        # Upload an image manifest
-        with open(self.config, "r") as fd:
-            content = fd.read().encode("utf-8")
-        config_digest = calculate_digest(content)
-        push(digest=config_digest, data=content)
-
-    def test_push_post_then_put(self):
+    def push_post_then_put(self, with_auth=False):
         """
         POST /v2/<name>/blobs/uploads/
         PUT /v2/<name>/blobs/uploads/
@@ -137,6 +165,11 @@ class APIPushTests(APITestCase):
         print("POST to request session: %s" % url)
         headers = {"Content-Type": "application/octet-stream"}
         response = requests.post(url, headers=headers)
+        auth_headers = {}
+        if with_auth:
+            auth_headers = get_authentication_headers(response)
+            headers.update(auth_headers)
+            response = requests.post(url, headers=headers)
 
         # Location must be in response header
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
@@ -150,6 +183,7 @@ class APIPushTests(APITestCase):
             "Content-Length": str(len(self.data)),
             "Content-Type": "application/octet-stream",
         }
+        headers.update(auth_headers)
         print("PUT to upload: %s" % blob_url)
         response = requests.put(blob_url, data=self.data, headers=headers)
 
@@ -158,10 +192,10 @@ class APIPushTests(APITestCase):
         self.assertTrue("Location" in response.headers)
 
         download_url = response.headers["Location"]
-        response = requests.get(download_url)
+        response = requests.get(download_url, headers=auth_headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_push_chunked(self):
+    def push_chunked(self, with_auth=False):
         """
         POST /v2/<name>/blobs/uploads/
         PATCH <location>
@@ -173,6 +207,11 @@ class APIPushTests(APITestCase):
         print("POST to request chunked session: %s" % url)
         headers = {"Content-Type": "application/octet-stream", "Content-Length": "0"}
         response = requests.post(url, headers=headers)
+        auth_headers = {}
+        if with_auth:
+            auth_headers = get_authentication_headers(response)
+            headers.update(auth_headers)
+            response = requests.post(url, headers=headers)
 
         # Location must be in response header
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
@@ -193,6 +232,7 @@ class APIPushTests(APITestCase):
                     "Content-Length": str(len(chunk)),
                     "Content-Type": "application/octet-stream",
                 }
+                headers.update(auth_headers)
                 start = end + 1
                 print("PATCH to upload content range: %s" % content_range)
                 response = requests.patch(session_url, data=chunk, headers=headers)
@@ -201,13 +241,13 @@ class APIPushTests(APITestCase):
 
         # Finally, issue a PUT request to close blob
         session_url = "%s?digest=%s" % (session_url, self.digest)
-        response = requests.put(session_url)
+        response = requests.put(session_url, headers=auth_headers)
 
         # Location must be in response header
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue("Location" in response.headers)
 
-    def test_push_view_delete_manifest(self):
+    def push_view_delete_manifest(self, with_auth=False):
         """
         PUT /v2/<name>/manifests/<reference>
         DELETE /v2/<name>/manifests/<reference>
@@ -233,13 +273,18 @@ class APIPushTests(APITestCase):
             "Content-Length": str(len(manifest)),
         }
         response = requests.put(url, headers=headers, data=manifest)
+        auth_headers = {}
+        if with_auth:
+            auth_headers = get_authentication_headers(response)
+            headers.update(auth_headers)
+            response = requests.put(url, headers=headers, data=manifest)
 
         # Location must be in response header
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue("Location" in response.headers)
 
         # test manifest download
-        response = requests.get(url).json()
+        response = requests.get(url, headers=auth_headers).json()
         for key in ["schemaVersion", "config", "layers", "annotations"]:
             assert key in response
 
@@ -248,14 +293,14 @@ class APIPushTests(APITestCase):
             reverse("django_oci:image_tags", kwargs={"name": self.repository})
         )
         print("GET to list tags: %s" % tags_url)
-        tags = requests.get(tags_url)
+        tags = requests.get(tags_url, headers=auth_headers)
         self.assertEqual(tags.status_code, status.HTTP_200_OK)
         tags = tags.json()
         for key in ["name", "tags"]:
             assert key in tags
 
         # First delete tag (we are allowed to have an untagged manifest)
-        response = requests.delete(url)
+        response = requests.delete(url, headers=auth_headers)
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
 
         # Finally, delete the manifest
@@ -265,5 +310,79 @@ class APIPushTests(APITestCase):
                 kwargs={"name": self.repository, "reference": manifest_reference},
             )
         )
-        response = requests.delete(url)
+        response = requests.delete(url, headers=auth_headers)
         self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+
+    def push_single_monolithic_post(self, with_auth=False):
+        """
+        POST /v2/<name>/blobs/uploads/
+        """
+        # Push the image blob, should return 401 without authentication
+        response = self.push(digest=self.digest, data=self.data, test_response=False)
+        headers = {}
+        if with_auth:
+            headers = get_authentication_headers(response)
+            response = self.push(
+                digest=self.digest,
+                data=self.data,
+                test_response=False,
+                extra_headers=headers,
+            )
+        assert response.status_code == 201
+        assert "Location" in response.headers
+        download_url = response.headers["Location"]
+        response = requests.get(download_url, headers=headers if headers else None)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Upload an image manifest
+        with open(self.config, "r") as fd:
+            content = fd.read().encode("utf-8")
+        config_digest = calculate_digest(content)
+        self.push(digest=config_digest, data=content, extra_headers=headers)
+
+    def setUp(self):
+        self.repository = "vanessa/container"
+        self.image = os.path.abspath(
+            os.path.join(here, "..", "examples", "singularity", "busybox_latest.sif")
+        )
+        self.config = os.path.abspath(
+            os.path.join(here, "..", "examples", "singularity", "config.json")
+        )
+
+        # Read binary data and calculate sha256 digest
+        with open(self.image, "rb") as fd:
+            self.data = fd.read()
+        self._digest = calculate_digest(self.data)
+        self.digest = "sha256:%s" % self._digest
+
+    @skipIf(requires_auth, "Authentication required")
+    def test_push_single_monolithic_post(self):
+        return self.push_single_monolithic_post(with_auth=False)
+
+    @skipIf(not requires_auth, "This test requires authentication and will be skipped")
+    def test_push_single_monolithic_post_authenticated(self):
+        return self.push_single_monolithic_post(with_auth=True)
+
+    @skipIf(requires_auth, "Authentication required")
+    def test_push_post_then_put(self):
+        return self.push_post_then_put(with_auth=False)
+
+    @skipIf(not requires_auth, "This test requires authentication and will be skipped")
+    def test_push_post_then_put_authenticated(self):
+        return self.push_post_then_put(with_auth=True)
+
+    @skipIf(requires_auth, "Authentication required")
+    def test_push_chunked(self):
+        return self.push_chunked(with_auth=False)
+
+    @skipIf(not requires_auth, "This test requires authentication and will be skipped")
+    def test_push_chunked_authenticated(self):
+        return self.push_chunked(with_auth=True)
+
+    @skipIf(requires_auth, "Authentication required")
+    def test_push_view_delete_manifest(self):
+        return self.push_view_delete_manifest(with_auth=False)
+
+    @skipIf(not requires_auth, "This test requires authentication and will be skipped")
+    def test_push_view_delete_manifest_authenticated(self):
+        return self.push_view_delete_manifest(with_auth=True)

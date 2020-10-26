@@ -32,7 +32,7 @@ missing that you'd like to see here, please [open an issue]({{ site.repo }}/issu
 |URL_PREFIX | Url base prefix | string | v2 |
 |SPEC_VERSION |  Version of distribution spec | string | 1 |
 |PRIVATE_ONLY| Only allow private repositories (not implemented yet) | boolean | False |
-|AUTHENTICATED_USER | Custom class for user (only define if you have one ) | string | None |
+|DISABLE_AUTH | Set to True to disable authentication | boolean | False |
 |CONTENT_TYPES | Allowed content types to upload as layers | list of strings | ["application/octet-stream"] |
 |IMAGE_MANIFEST_CONTENT_TYPE | Image Manifest content type | string | application/vnd.oci.image.manifest.v1+json |
 |STORAGE_BACKEND | what storage backend to use | string | filesystem |

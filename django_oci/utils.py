@@ -62,6 +62,12 @@ def set_default(item, default, use_default):
     return item
 
 
+def get_server(request):
+    """Given a request, parse it to determine the server name and using http/https"""
+    scheme = request.is_secure() and "https" or "http"
+    return f"{scheme}://{request.get_host()}"
+
+
 def parse_content_range(content_range):
     """Given a content range, match based on regular expression and return
     parsed start, end (both int)
