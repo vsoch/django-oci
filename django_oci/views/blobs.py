@@ -31,7 +31,7 @@ from django_oci.auth import is_authenticated
 from ratelimit.mixins import RatelimitMixin
 
 
-class BlobDownload(APIView):
+class BlobDownload(RatelimitMixin, APIView):
     """Given a GET request for a blob, stream the blob."""
 
     ratelimit_key = "ip"
@@ -78,7 +78,7 @@ class BlobDownload(APIView):
         return storage.delete_blob(name, digest)
 
 
-class BlobUpload(APIView):
+class BlobUpload(RatelimitMixin, APIView):
     """An image push will receive a request to push, authenticate the user,
     and return an upload url (url is /v2/<name>/blobs/uploads/)
     """

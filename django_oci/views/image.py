@@ -28,7 +28,7 @@ from .parsers import ManifestRenderer
 from django_oci.auth import is_authenticated
 
 
-class ImageTags(APIView, RatelimitMixin):
+class ImageTags(RatelimitMixin, APIView):
     """Return a list of tags for an image."""
 
     ratelimit_key = "ip"
@@ -86,7 +86,7 @@ class ImageTags(APIView, RatelimitMixin):
         return Response(status=200, data=data)
 
 
-class ImageManifest(APIView):
+class ImageManifest(RatelimitMixin, APIView):
     """An Image Manifest holds the configuration and metadata about an image
     GET: is to retrieve an existing image manifest
     PUT: is to push a manifest
