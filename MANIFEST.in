@@ -1,6 +1,4 @@
 include README.md AUTHORS.md LICENSE
 
-# TODO get this working!
 graft django_oci
-global-exclude __pycache__
-recursive-include django_oci *.html *.png *.gif *js *.css *jpg *jpeg *svg *py
+global-exclude __pycache__ migrations
