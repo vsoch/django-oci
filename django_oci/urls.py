@@ -16,7 +16,6 @@ limitations under the License.
 
 """
 
-from django.urls import reverse
 from django.conf.urls import url
 from django.urls import path
 from django_oci import views
@@ -26,6 +25,11 @@ app_name = "django_oci"
 
 
 urlpatterns = [
+    url(
+        r"^auth/token/?$",
+        views.GetAuthToken.as_view(),
+        name="get_auth_token",
+    ),
     # https://github.com/opencontainers/distribution-spec/blob/master/spec.md#api-version-check
     url(
         r"^%s/?$" % settings.URL_PREFIX,
@@ -70,7 +74,7 @@ urlpatterns = [
         views.BlobUpload.as_view(),
         name="blob_upload",
     ),
-    # Listed twice, once with and once without trailing slash
+    # Also listed twice, once with and once without trailing slash
     path(
         "%s/<path:name>/blobs/<digest>" % settings.URL_PREFIX,
         views.BlobDownload.as_view(),

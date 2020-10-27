@@ -19,16 +19,15 @@ limitations under the License.
 from django.core.files.storage import FileSystemStorage
 from django_oci import settings
 from django.urls import reverse
-from django.db import models, IntegrityError
+from django.db import models
 from django.contrib.auth.models import User
 from django.middleware import cache
-import uuid
 
 import hashlib
 import json
 import os
 import re
-import uuid
+
 
 PRIVACY_CHOICES = (
     (False, "Public (The collection will be accessible by anyone)"),
@@ -138,14 +137,14 @@ class Repository(models.Model):
     add_date = models.DateTimeField("date added", auto_now_add=True)
     modify_date = models.DateTimeField("date modified", auto_now=True)
     owners = models.ManyToManyField(
-        settings.AUTHENTICATED_USER or User,
+        User,
         blank=True,
         default=None,
         related_name="container_collection_owners",
         related_query_name="owners",
     )
     contributors = models.ManyToManyField(
-        settings.AUTHENTICATED_USER or User,
+        User,
         related_name="container_collection_contributors",
         related_query_name="contributor",
         blank=True,
@@ -160,6 +159,9 @@ class Repository(models.Model):
         verbose_name="Accessibility",
     )
 
+    def has_view_permission(self, user):
+        return user in self.owners.all() or user in self.contributors.all()
+
     def get_absolute_url(self):
         return reverse("repository_details", args=[str(self.id)])
 
@@ -170,7 +172,7 @@ class Repository(models.Model):
         return self.get_uri()
 
     def get_uri(self):
-        return "%s:%s" % (self.name, self.image_set.count())
+        return self.name
 
     def get_label(self):
         return "repository"

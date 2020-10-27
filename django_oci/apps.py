@@ -25,3 +25,5 @@ class DjangoOciConfig(AppConfig):
 
     def ready(self):
         import django_oci.signals
+
+        assert django_oci.signals

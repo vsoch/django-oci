@@ -16,7 +16,6 @@ limitations under the License.
 
 """
 
-from rest_framework.parsers import BaseParser
 from rest_framework import renderers
 from rest_framework.negotiation import BaseContentNegotiation
 

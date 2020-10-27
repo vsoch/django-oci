@@ -30,9 +30,9 @@ missing that you'd like to see here, please [open an issue]({{ site.repo }}/issu
 | name | description | type |default |
 |------|-------------|------|--------|
 |URL_PREFIX | Url base prefix | string | v2 |
+|DISABLE_AUTHENTICATION | Set to True to disable authentication | boolean | False |
 |SPEC_VERSION |  Version of distribution spec | string | 1 |
 |PRIVATE_ONLY| Only allow private repositories (not implemented yet) | boolean | False |
-|AUTHENTICATED_USER | Custom class for user (only define if you have one ) | string | None |
 |CONTENT_TYPES | Allowed content types to upload as layers | list of strings | ["application/octet-stream"] |
 |IMAGE_MANIFEST_CONTENT_TYPE | Image Manifest content type | string | application/vnd.oci.image.manifest.v1+json |
 |STORAGE_BACKEND | what storage backend to use | string | filesystem |
@@ -40,8 +40,21 @@ missing that you'd like to see here, please [open an issue]({{ site.repo }}/issu
 |MEDIA_ROOT | Media root (if saving images on filesystem | string | images |
 |CACHE_DIR | Set a custom cache directory | string | MEDIA_ROOT + /cache |
 |SESSION_EXPIRES_SECONDS | The number of seconds a session (upload request) is valid (10 minutes) | integer | 600 |
+|TOKEN_EXPIRES_SECONDS | The number of seconds a token for a request is valid (10 minutes) | integer | 600 |
 |DISABLE_TAG_MANIFEST_DELETE| Don't allow deleting of manifest tags | boolean | False |
 |DEFAULT_CONTENT_TYPE| Default content type is application/octet-stream | string | application/octet-stream|
+|AUTHENTICATED_VIEWS | A list of view names to require authentication | list | see below |
+
+For authenticated views, the default list is the following:
+
+```
+[
+    "django_oci.views.blobs.BlobUpload",
+    "django_oci.views.blobs.BlobDownload",
+    "django_oci.views.image.ImageTags",
+    "django_oci.views.image.ImageManifest",
+]
+```
 
 Some of these are not yet developed (e.g., `PRIVATE_ONLY` and others are unlikely to ever change
 (e.g., `DEFAULT_CONTENT_TYPE` but are provided in case you want to innovate or try something new.
