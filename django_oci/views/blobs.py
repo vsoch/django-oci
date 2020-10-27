@@ -28,9 +28,19 @@ from django.middleware import cache
 from django_oci.utils import parse_content_range
 from django_oci.auth import is_authenticated
 
+from ratelimit.mixins import RatelimitMixin
+
 
 class BlobDownload(APIView):
     """Given a GET request for a blob, stream the blob."""
+
+    ratelimit_key = "ip"
+    ratelimit_rate = settings.VIEW_RATE_LIMIT
+    ratelimit_block = settings.VIEW_RATE_LIMIT_BLOCK
+    ratelimit_method = (
+        "GET",
+        "DELETE",
+    )
 
     permission_classes = []
     allowed_methods = (
@@ -72,6 +82,11 @@ class BlobUpload(APIView):
     """An image push will receive a request to push, authenticate the user,
     and return an upload url (url is /v2/<name>/blobs/uploads/)
     """
+
+    ratelimit_key = "ip"
+    ratelimit_rate = settings.VIEW_RATE_LIMIT
+    ratelimit_block = settings.VIEW_RATE_LIMIT_BLOCK
+    ratelimit_method = ("POST", "PUT", "PATCH")
 
     permission_classes = []
     allowed_methods = (

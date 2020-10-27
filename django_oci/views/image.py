@@ -27,15 +27,14 @@ from django_oci import settings
 from .parsers import ManifestRenderer
 from django_oci.auth import is_authenticated
 
-# from opencontainers.image.v1.manifest import Manifest
-# from rest_framework import generics, serializers, viewsets, status
-# from rest_framework.exceptions import PermissionDenied, NotFound
-# from ratelimit.mixins import RatelimitMixin
 
-
-class ImageTags(APIView):
+class ImageTags(APIView, RatelimitMixin):
     """Return a list of tags for an image."""
 
+    ratelimit_key = "ip"
+    ratelimit_rate = settings.VIEW_RATE_LIMIT
+    ratelimit_block = settings.VIEW_RATE_LIMIT_BLOCK
+    ratelimit_method = "GET"
     permission_classes = []
     allowed_methods = ("GET",)
 
@@ -92,6 +91,11 @@ class ImageManifest(APIView):
     GET: is to retrieve an existing image manifest
     PUT: is to push a manifest
     """
+
+    ratelimit_key = "ip"
+    ratelimit_rate = settings.VIEW_RATE_LIMIT
+    ratelimit_block = settings.VIEW_RATE_LIMIT_BLOCK
+    ratelimit_method = ("GET", "PUT", "DELETE")
 
     renderer_classes = [ManifestRenderer, JSONRenderer]
     permission_classes = []
