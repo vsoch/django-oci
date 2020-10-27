@@ -27,6 +27,8 @@ from django_oci import settings
 from .parsers import ManifestRenderer
 from django_oci.auth import is_authenticated
 
+from ratelimit.mixins import RatelimitMixin
+
 
 class ImageTags(RatelimitMixin, APIView):
     """Return a list of tags for an image."""
