@@ -20,6 +20,8 @@
       url: docs/getting-started/#project-settings
     - title: Customization Options
       url: docs/getting-started/options
+    - title: Authentication
+      url: docs/getting-started/auth
     - title: Example Project
       url: docs/getting-started/example
     - title: Example Client
