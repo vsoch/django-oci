@@ -172,7 +172,7 @@ class Repository(models.Model):
         return self.get_uri()
 
     def get_uri(self):
-        return "%s:%s" % (self.name, self.image_set.count())
+        return self.name
 
     def get_label(self):
         return "repository"

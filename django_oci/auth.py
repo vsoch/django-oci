@@ -43,6 +43,13 @@ def is_authenticated(
     Returns a boolean to indicate if the user is authenticated, and a response with
     the challenge if not. If allow_if_private is True, we only allow access to users
     that are owners or contributors, regardless of having a valid token.
+
+    Arguments:
+    ==========
+    request (requests.Request)    : the Request object to inspect
+    repository (str or Repository): the name of a repository or instance
+    must_be_owner (bool)          : if must be owner is true, requires push
+    reposity_exists (bool)        : flag to indicate that the repository exists.
     """
     # Derive the view name from the request PATH_INFO
     func, two, three = resolve(request.META["PATH_INFO"])
@@ -79,6 +86,13 @@ def is_authenticated(
 def generate_jwt(username, scope, realm, repository):
     """Given a username, scope, realm, repository, and service, generate a jwt
     token to return to the user with a default expiration of 10 minutes.
+
+    Arguments:
+    ==========
+    username (str)  : the user's username to add under "sub"
+    scope (list)    : a list of scopes to require (e.g., ['push, pull'])
+    realm (str)     : the authentication realm, typically <server>/auth
+    repository (str): the repository name
     """
     # The jti expires after TOKEN_EXPIRES_SECONDS
     issued_at = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -110,7 +124,14 @@ def generate_jwt(username, scope, realm, repository):
 
 
 def validate_jwt(request, repository, must_be_owner):
-    """Given a jwt token, decode and validate"""
+    """Given a jwt token, decode and validate
+
+    Arguments:
+    ==========
+    request (requests.Request)    : the Request object to inspect
+    repository (models.Repository): the repository instance
+    must_be_owner (bool)          : if True, requires additional push scope
+    """
     header = request.META.get("HTTP_AUTHORIZATION", "")
     if re.search("bearer", header, re.IGNORECASE):
         encoded = re.sub("bearer", "", header, flags=re.IGNORECASE).strip()
@@ -168,19 +189,15 @@ def validate_jwt(request, repository, must_be_owner):
     return False, None
 
 
-def get_usertoken(user):
-    try:
-        token = Token.objects.get(user=user)
-    except Token.DoesNotExist:
-        token = Token.objects.create(user=user)
-    return token.key
-
-
 def get_user(request):
     """Given a request, read the Authorization header to get the base64 encoded
     username and token (password) which is a basic auth. If we return the user
     object, the user is successfully authenticated. Otherwise, return None.
     and the calling function should return Forbidden status.
+
+    Arguments:
+    ==========
+    request (requests.Request)    : the Request object to inspect
     """
     header = request.META.get("HTTP_AUTHORIZATION", "")
 
@@ -199,6 +216,10 @@ def get_user(request):
 def get_token(request):
     """The same as validate_token, but return the token object to check the
     associated user.
+
+    Arguments:
+    ==========
+    request (requests.Request)    : the Request object to inspect
     """
     # Coming from HTTP, look for authorization as bearer token
     token = request.META.get("HTTP_AUTHORIZATION")
@@ -220,6 +241,12 @@ def get_token(request):
 def get_challenge(request, repository, scopes=["pull", "push"]):
     """Given an unauthenticated request, return a challenge in
     the Www-Authenticate header
+
+    Arguments:
+    ==========
+    request (requests.Request): the Request object to inspect
+    repository (str)          : the repository name
+    scopes (list)             : list of scopes to return
     """
     DOMAIN_NAME = get_server(request)
     if not isinstance(scopes, list):

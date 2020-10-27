@@ -22,11 +22,25 @@ management.
 If you are looking for a more structured Python client to interact with an [opencontainers/distribution-spec](https://github.com/opencontainers/distribution-spec) registry like django-oci, [oci-python](https://github.com/vsoch/oci-python) serves a client, Reggie (python) - "the saint of content management" that mimics the official [Reggie client](https://github.com/bloodorangeio/reggie) to interact with an OCI registry. You can read [complete documentation served at the repository](https://vsoch.github.io/oci-python/docs/getting-started#distribution-specification)
 and keep reading for a small tutorial.
 
-### 1. Start a server
+### Authentication
 
-Let's first start a django-oci server.
-Note that at the time of this writing, django-oci does not have authentication
-implemented yet, so push/pull endpoints will work without it.
+#### Without Authentication
+
+For testing, it's easiest to set up a server that doesn't require authentication. If you want to do the same but have authentication, see [the next section](#with-authentication).
+
+#### With Authentication
+
+It's more likely that you'll want a registry with authentication! If this is the case,
+keep out for comments in the tutorial below that show extra steps needed for authentication.
+In the tutorial below, we will show how to create
+a user with a token, and then issue interactions. This is all on the command line, but
+in the case of a registry with an interface you would likely be able to create the user there.
+
+### Steps
+
+#### 1. Start a server
+
+Let's first start a django-oci server, and disable authentication.
 Here is a quick set of steps to get a server running.
 
 ```bash
@@ -38,10 +52,17 @@ python -m venv env
 source env/bin/activate
 pip install -r requirements.txt
 pip install opencontainers
+```
 
+The next step should only be issued if you want to disable authentication.
+
+```bash
 # Disable authentication for the demo
 export DISABLE_AUTHENTICATION=yes
+```
+And finally, make migrations and run your server!
 
+```bash
 # Database migrations
 python manage.py makemigrations
 python manage.py makemigrations django_oci
@@ -69,13 +90,19 @@ This should get a development server running! Also note that we are installing r
 with `pip install opencontainers`. Now you can open another Python
 interactive terminal (I like ipython) and test the opencontainers reggie client.
 You'll again want to source the same environment, and probably install ipython
-for a nicer terminal experience.
+for a nicer terminal experience in the database shell.
 
 ```bash
 source env/bin/activate
 pip install ipython
-ipython
+python manage.py shell
 ```
+
+**Without Authentication**
+
+If you don't need authentication and exported `DISABLE_AUTHENTICATION` above, then you
+can create the client as follows.
+
 ```python
 from opencontainers.distribution.reggie import *
 client = NewClient("http://127.0.0.1:8000", WithDefaultName("myorg/myrepo"), WithDebug(True))
@@ -88,6 +115,53 @@ client.Config.DefaultName
 
 client.Config.Debug
 # True
+```
+
+**With Authentication**
+
+To authenticate we need a username and password. Let's then first create your username, 
+and get the token, which we will need for authenticated requests.
+
+```python
+from django.contrib.auth.models import User
+user = User.objects.create(username='dinosaur')
+# <User: dinosaur>
+```
+
+The token is automatically generated for the user. Let's put it into it's own variable.
+
+```python
+user.auth_token
+# <Token: 93e033f944ff11626662a5ac4d74b700d465d91b>
+token = str(user.auth_token)
+```
+
+Great! Now let's create our Reggie client. This command is similar to the one before,
+but this time we add the `WithUsernamePassword` function to provide it with the basic authentication
+parameters, username and the token as the password, to prepare for the 401 response and [auth flow](auth/)
+
+```python
+from opencontainers.distribution.reggie import *
+client = NewClient("http://127.0.0.1:8000", 
+          WithDefaultName("myorg/myrepo"), 
+          WithUsernamePassword(user.username, token),
+          WithDebug(True))
+```
+
+You can again see the config parameters, but this time, we have a username and password
+
+```python
+client.Config.DefaultName
+# 'myorg/myrepo'
+
+client.Config.Debug
+# True
+
+client.Config.Username
+# 'dinosaur'
+
+client.Config.Password
+# '93e033f944ff11626662a5ac4d74b700d465d91b'
 ```
 
 Next, let's walk through a few basic requests to demonstrate how Reggie Python works.
@@ -110,6 +184,7 @@ response.json()
 {'success': True}
 ```
 
+This particular endpoint doesn't require authentication.
 Let's now try more substantial requests.
 
 #### 3. Upload a blob with POST then PUT
@@ -391,5 +466,4 @@ response.json()
 # {'name': 'myorg/myrepo', 'tags': ['latest']}
 ```
 
-We should be adding documentation for authentication after it's implemented.
-In the meantime, if you have a question or want to contribute, please [let us know]({{ site.repo}}/issues).
+If you have a question or want to contribute, please [let us know]({{ site.repo}}/issues).
