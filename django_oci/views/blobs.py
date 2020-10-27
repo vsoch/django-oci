@@ -86,7 +86,7 @@ class BlobUpload(APIView):
     ratelimit_key = "ip"
     ratelimit_rate = settings.VIEW_RATE_LIMIT
     ratelimit_block = settings.VIEW_RATE_LIMIT_BLOCK
-    ratelimit_method = ("POST", "PUT", "PATCH")
+    ratelimit_method = ("POST", "PUT")
 
     permission_classes = []
     allowed_methods = (
