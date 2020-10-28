@@ -28,19 +28,12 @@ from django.middleware import cache
 from django_oci.utils import parse_content_range
 from django_oci.auth import is_authenticated
 
-from ratelimit.mixins import RatelimitMixin
+from ratelimit.decorators import ratelimit
+from django.utils.decorators import method_decorator
 
 
-class BlobDownload(RatelimitMixin, APIView):
+class BlobDownload(APIView):
     """Given a GET request for a blob, stream the blob."""
-
-    ratelimit_key = "ip"
-    ratelimit_rate = settings.VIEW_RATE_LIMIT
-    ratelimit_block = settings.VIEW_RATE_LIMIT_BLOCK
-    ratelimit_method = (
-        "GET",
-        "DELETE",
-    )
 
     permission_classes = []
     allowed_methods = (
@@ -49,6 +42,14 @@ class BlobDownload(RatelimitMixin, APIView):
     )
 
     @never_cache
+    @method_decorator(
+        ratelimit(
+            key="ip",
+            rate=settings.VIEW_RATE_LIMIT,
+            method="GET",
+            block=settings.VIEW_RATE_LIMIT_BLOCK,
+        )
+    )
     def get(self, request, *args, **kwargs):
         """POST /v2/<name>/blobs/<digest>"""
         # the name is only used to validate the user has permission to upload
@@ -63,6 +64,14 @@ class BlobDownload(RatelimitMixin, APIView):
         return storage.download_blob(name, digest)
 
     @never_cache
+    @method_decorator(
+        ratelimit(
+            key="ip",
+            rate=settings.VIEW_RATE_LIMIT,
+            method="DELETE",
+            block=settings.VIEW_RATE_LIMIT_BLOCK,
+        )
+    )
     def delete(self, request, *args, **kwargs):
         """DELETE /v2/<name>/blobs/<digest>"""
         name = kwargs.get("name")
@@ -78,15 +87,10 @@ class BlobDownload(RatelimitMixin, APIView):
         return storage.delete_blob(name, digest)
 
 
-class BlobUpload(RatelimitMixin, APIView):
+class BlobUpload(APIView):
     """An image push will receive a request to push, authenticate the user,
     and return an upload url (url is /v2/<name>/blobs/uploads/)
     """
-
-    ratelimit_key = "ip"
-    ratelimit_rate = settings.VIEW_RATE_LIMIT
-    ratelimit_block = settings.VIEW_RATE_LIMIT_BLOCK
-    ratelimit_method = ("POST", "PUT")
 
     permission_classes = []
     allowed_methods = (
@@ -96,6 +100,14 @@ class BlobUpload(RatelimitMixin, APIView):
     )
 
     @never_cache
+    @method_decorator(
+        ratelimit(
+            key="ip",
+            rate=settings.VIEW_RATE_LIMIT,
+            method="PUT",
+            block=settings.VIEW_RATE_LIMIT_BLOCK,
+        )
+    )
     def put(self, request, *args, **kwargs):
         """PUT /v2/<name>/blobs/uploads/
         A put request can happen in two scenarios. 1. after a POST request,
@@ -254,6 +266,14 @@ class BlobUpload(RatelimitMixin, APIView):
         )
 
     @never_cache
+    @method_decorator(
+        ratelimit(
+            key="ip",
+            rate=settings.VIEW_RATE_LIMIT,
+            method="POST",
+            block=settings.VIEW_RATE_LIMIT_BLOCK,
+        )
+    )
     def post(self, request, *args, **kwargs):
         """POST /v2/<name>/blobs/uploads/"""
 
