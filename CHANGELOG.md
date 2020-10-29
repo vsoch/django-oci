@@ -14,6 +14,7 @@ Critical items to know are:
  - changed behaviour
 
 ## [master](https://github.com/vsoch/django-oci/tree/master)
+ - Adding Django ratelimit to protect views (0.0.12)
  - Added authentication (0.0.11)
  - Django OCI core release without authentication (0.0.1)
  - skeleton release  (0.0.0)

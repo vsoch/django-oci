@@ -43,6 +43,8 @@ missing that you'd like to see here, please [open an issue]({{ site.repo }}/issu
 |TOKEN_EXPIRES_SECONDS | The number of seconds a token for a request is valid (10 minutes) | integer | 600 |
 |DISABLE_TAG_MANIFEST_DELETE| Don't allow deleting of manifest tags | boolean | False |
 |DEFAULT_CONTENT_TYPE| Default content type is application/octet-stream | string | application/octet-stream|
+|VIEW_RATE_LIMIT| The rate limit to set for view requests | string | 100/1d |
+|VIEW_RATE_LIMIT_BLOCK| Temporarily block the user that goes over | boolean | True |
 |AUTHENTICATED_VIEWS | A list of view names to require authentication | list | see below |
 
 For authenticated views, the default list is the following:

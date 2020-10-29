@@ -28,6 +28,9 @@ from django.middleware import cache
 from django_oci.utils import parse_content_range
 from django_oci.auth import is_authenticated
 
+from ratelimit.decorators import ratelimit
+from django.utils.decorators import method_decorator
+
 
 class BlobDownload(APIView):
     """Given a GET request for a blob, stream the blob."""
@@ -39,6 +42,14 @@ class BlobDownload(APIView):
     )
 
     @never_cache
+    @method_decorator(
+        ratelimit(
+            key="ip",
+            rate=settings.VIEW_RATE_LIMIT,
+            method="GET",
+            block=settings.VIEW_RATE_LIMIT_BLOCK,
+        )
+    )
     def get(self, request, *args, **kwargs):
         """POST /v2/<name>/blobs/<digest>"""
         # the name is only used to validate the user has permission to upload
@@ -53,6 +64,14 @@ class BlobDownload(APIView):
         return storage.download_blob(name, digest)
 
     @never_cache
+    @method_decorator(
+        ratelimit(
+            key="ip",
+            rate=settings.VIEW_RATE_LIMIT,
+            method="DELETE",
+            block=settings.VIEW_RATE_LIMIT_BLOCK,
+        )
+    )
     def delete(self, request, *args, **kwargs):
         """DELETE /v2/<name>/blobs/<digest>"""
         name = kwargs.get("name")
@@ -81,6 +100,14 @@ class BlobUpload(APIView):
     )
 
     @never_cache
+    @method_decorator(
+        ratelimit(
+            key="ip",
+            rate=settings.VIEW_RATE_LIMIT,
+            method="PUT",
+            block=settings.VIEW_RATE_LIMIT_BLOCK,
+        )
+    )
     def put(self, request, *args, **kwargs):
         """PUT /v2/<name>/blobs/uploads/
         A put request can happen in two scenarios. 1. after a POST request,
@@ -239,6 +266,14 @@ class BlobUpload(APIView):
         )
 
     @never_cache
+    @method_decorator(
+        ratelimit(
+            key="ip",
+            rate=settings.VIEW_RATE_LIMIT,
+            method="POST",
+            block=settings.VIEW_RATE_LIMIT_BLOCK,
+        )
+    )
     def post(self, request, *args, **kwargs):
         """POST /v2/<name>/blobs/uploads/"""
 

@@ -27,10 +27,8 @@ from django_oci import settings
 from .parsers import ManifestRenderer
 from django_oci.auth import is_authenticated
 
-# from opencontainers.image.v1.manifest import Manifest
-# from rest_framework import generics, serializers, viewsets, status
-# from rest_framework.exceptions import PermissionDenied, NotFound
-# from ratelimit.mixins import RatelimitMixin
+from ratelimit.decorators import ratelimit
+from django.utils.decorators import method_decorator
 
 
 class ImageTags(APIView):
@@ -40,6 +38,14 @@ class ImageTags(APIView):
     allowed_methods = ("GET",)
 
     @never_cache
+    @method_decorator(
+        ratelimit(
+            key="ip",
+            rate=settings.VIEW_RATE_LIMIT,
+            method="GET",
+            block=settings.VIEW_RATE_LIMIT_BLOCK,
+        )
+    )
     def get(self, request, *args, **kwargs):
         """GET /v2/<name>/tags/list. We don't require authentication to list tags,
         unless the repository is private.
@@ -102,6 +108,14 @@ class ImageManifest(APIView):
     )
 
     @never_cache
+    @method_decorator(
+        ratelimit(
+            key="ip",
+            rate=settings.VIEW_RATE_LIMIT,
+            method="DELETE",
+            block=settings.VIEW_RATE_LIMIT_BLOCK,
+        )
+    )
     def delete(self, request, *args, **kwargs):
         """DELETE /v2/<name>/manifests/<tag>"""
 
@@ -138,6 +152,14 @@ class ImageManifest(APIView):
         return Response(status=202)
 
     @never_cache
+    @method_decorator(
+        ratelimit(
+            key="ip",
+            rate=settings.VIEW_RATE_LIMIT,
+            method="PUT",
+            block=settings.VIEW_RATE_LIMIT_BLOCK,
+        )
+    )
     def put(self, request, *args, **kwargs):
         """PUT /v2/<name>/manifests/<reference>
         https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pushing-manifests
@@ -175,6 +197,14 @@ class ImageManifest(APIView):
         return Response(status=201, headers={"Location": image.get_manifest_url()})
 
     @never_cache
+    @method_decorator(
+        ratelimit(
+            key="ip",
+            rate=settings.VIEW_RATE_LIMIT,
+            method="GET",
+            block=settings.VIEW_RATE_LIMIT_BLOCK,
+        )
+    )
     def get(self, request, *args, **kwargs):
         """GET /v2/<name>/manifests/<reference>"""
 

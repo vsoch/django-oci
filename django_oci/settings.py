@@ -66,6 +66,10 @@ DEFAULTS = {
     "AUTHENTICATION_SERVER": None,
     # jwt encoding secret: set server wide or generated on the fly
     "JWT_SERVER_SECRET": str(uuid.uuid4()),
+    # View rate limit, defaults to 100/1day using django-ratelimit based on ipaddress
+    "VIEW_RATE_LIMIT": "100/1d",
+    # Given that someone goes over, are they blocked for a period?
+    "VIEW_RATE_LIMIT_BLOCK": True,
 }
 
 # The user can define a section for DJANGO_OCI in settings
@@ -99,6 +103,13 @@ SESSION_EXPIRES_SECONDS = oci.get(
     "SESSION_EXPIRES_SECONDS", DEFAULTS["SESSION_EXPIRES_SECONDS"]
 )
 AUTHENTICATED_VIEWS = oci.get("AUTHENTICATED_VIEWS", DEFAULTS["AUTHENTICATED_VIEWS"])
+
+# Rate Limits
+VIEW_RATE_LIMIT = oci.get("VIEW_RATE_LIMIT", DEFAULTS["VIEW_RATE_LIMIT"])
+VIEW_RATE_LIMIT_BLOCK = oci.get(
+    "VIEW_RATE_LIMIT_BLOCK", DEFAULTS["VIEW_RATE_LIMIT_BLOCK"]
+)
+
 
 # Set filesystem cache, also adding to middleware
 CACHES = getattr(settings, "CACHES", {})
