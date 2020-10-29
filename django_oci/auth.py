@@ -36,7 +36,7 @@ import jwt
 
 
 def is_authenticated(
-    request, repository=None, must_be_owner=True, repository_exists=True
+    request, repository=None, must_be_owner=True, repository_exists=True, scopes=None
 ):
     """
     Function to check if a request is authenticated, a repository and the request is required.
@@ -51,6 +51,9 @@ def is_authenticated(
     must_be_owner (bool)          : if must be owner is true, requires push
     reposity_exists (bool)        : flag to indicate that the repository exists.
     """
+    # Scopes default to push and pull, more conservative
+    scopes = scopes or ["push", "pull"]
+
     # Derive the view name from the request PATH_INFO
     func, two, three = resolve(request.META["PATH_INFO"])
     view_name = "%s.%s" % (func.__module__, func.__name__)
@@ -76,7 +79,7 @@ def is_authenticated(
     # Case 3: False and response will return request for auth
     user = get_user(request)
     if not user:
-        headers = {"Www-Authenticate": get_challenge(request, name)}
+        headers = {"Www-Authenticate": get_challenge(request, name, scopes=scopes)}
         return False, Response(status=401, headers=headers), user
 
     # Denied for any other reason

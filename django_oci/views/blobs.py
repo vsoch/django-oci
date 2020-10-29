@@ -57,7 +57,7 @@ class BlobDownload(APIView):
         digest = kwargs.get("digest")
 
         # If allow_continue False, return response
-        allow_continue, response, _ = is_authenticated(request, name)
+        allow_continue, response, _ = is_authenticated(request, name, scopes=["pull"])
         if not allow_continue:
             return response
 

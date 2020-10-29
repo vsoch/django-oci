@@ -60,7 +60,9 @@ class ImageTags(APIView):
             raise Http404
 
         # If allow_continue False, return response
-        allow_continue, response, _ = is_authenticated(request, repository)
+        allow_continue, response, _ = is_authenticated(
+            request, repository, scopes=["pull"]
+        )
         if not allow_continue:
             return response
 
@@ -213,7 +215,7 @@ class ImageManifest(APIView):
         tag = kwargs.get("tag")
 
         # If allow_continue False, return response
-        allow_continue, response, _ = is_authenticated(request, name)
+        allow_continue, response, _ = is_authenticated(request, name, scopes=["pull"])
         if not allow_continue:
             return response
 
