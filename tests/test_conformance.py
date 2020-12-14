@@ -38,14 +38,14 @@ class ConformanceTests(APITestCase):
                 "Conformance testing binary conformance.test not found, set DJANGO_OCI_SKIP_CONFORMANCE in environment to skip."
             )
 
+        # Shared global variables
         env = os.environ.copy()
         env["OCI_ROOT_URL"] = "http://" + self.server_url
         env["OCI_NAMESPACE"] = "vsoch/django-oci"
         env["OCI_DEBUG"] = "true"
-        env["OCI_TEST_PUSH"] = "1"
-        env["OCI_TEST_PULL"] = "1"
-        env["OCI_TEST_CONTENT_DISCOVERY"] = "1"
-        env["OCI_TEST_CONTENT_MANAGEMENT"] = "1"
-
         response = subprocess.call(CONFORMANCE_BINARY_PATH, env=env)
         self.assertEqual(response, 0)
+
+        # Rename files to generate report
+        for filename in ["report.html", "junit.xml"]:
+            print(os.path.abspath(filename))
