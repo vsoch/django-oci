@@ -191,6 +191,25 @@ class APIPushTests(APITestCase):
         response = requests.get(download_url, headers=auth_headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+        # Test upload request from another repository
+        non_standard_name = "conformance-aedf05b6-6996-4dae-ad18-70a4db9e9061"
+        url = "http://127.0.0.1:8000%s" % (
+            reverse("django_oci:blob_upload", kwargs={"name": non_standard_name})
+        )
+        url = "%s?mount=%s&from=%s" % (url, self.digest, self.repository)
+        print("POST to request mount from another repository: %s" % url)
+        headers = {"Content-Type": "application/octet-stream"}
+        response = requests.post(url, headers=headers)
+        auth_headers = get_authentication_headers(response)
+        headers.update(auth_headers)
+        response = requests.post(url, headers=headers)
+        assert "Location" in response.headers
+
+        assert non_standard_name in response.headers["Location"]
+        download_url = response.headers["Location"]
+        response = requests.get(download_url, headers=auth_headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
     def test_push_chunked(self):
         """
         POST /v2/<name>/blobs/uploads/

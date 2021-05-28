@@ -20,7 +20,7 @@ SKIP_CONFORMANCE = os.environ.get("DJANGO_OCI_SKIP_CONFORMANCE")
 
 class ConformanceTests(APITestCase):
     def setUp(self):
-        self.server_url = "127.0.0.1:8080"
+        self.server_url = "127.0.0.1:8086"
         self.process = subprocess.Popen(
             ["python", "manage.py", "runserver", self.server_url]
         )

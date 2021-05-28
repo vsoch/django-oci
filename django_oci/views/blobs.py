@@ -63,6 +63,8 @@ class BlobDownload(APIView):
         if not allow_continue:
             return response
 
+        print(name)
+        print(digest)
         return storage.download_blob(name, digest)
 
     @never_cache
@@ -364,21 +366,33 @@ class BlobUpload(APIView):
             # Get the existing repository
             from_repository = get_object_or_404(Repository, name=from_repo)
 
+            print("MOUNT REQUEST FROM %s" % from_repository)
+            print("MOUNT IS %s" % mount)
+
             # Mount is the digest of the blob we need. We use the same datafile
             try:
-                blob = Blob.objects.get(digest=mount, repository=repository)
+                blob = Blob.objects.get(digest=mount, repository=from_repository)
             except Blob.DoesNotExist:
                 # Cross-mounting of nonexistent blob should yield session id
                 return storage.create_blob_request(from_repository)
 
             # Unset the pk and id, and add a new repository
+            print(blob.repository)
+            print(blob.repository.name)
+            print(repository)
             blob.pk = None
             blob.id = None
-            blob.repository = from_repository
+            blob.repository = repository
             blob.save()
+            print(blob.repository)
+            print(blob.repository.name)
+            print(blob.datafile)
+            print(blob.datafile.name)
 
             # Successful mount MUST be 201 Created, and MUST contain Location: <blob-location>
-            return Response(status=201, headers={"Location": blob.get_download_url()})
+            url = blob.get_download_url()
+            print(url)
+            return Response(status=201, headers={"Location": url})
 
         # Case 3; Content type length 0 indicates chunked upload
         elif content_length != 0:
