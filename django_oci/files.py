@@ -31,7 +31,7 @@ class ChunkedUpload(models.Model):
     saving anything to the database.
     """
 
-    session_id = models.CharField()
+    session_id = models.CharField(max_length=255)
     file = models.FileField(
         max_length=255, upload_to=os.path.join(MEDIA_ROOT, "sessions")
     )
