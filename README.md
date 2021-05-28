@@ -40,7 +40,6 @@ Add django-oci's URL patterns:
         url(r'^', include(django_oci.urls)),
         ...
     ]
-
 ```
 
 See the [documentation](https://vsoch.github.io/django-oci/) or [getting started guide](https://vsoch.github.io/django-oci/docs/getting-started/) for more details about setup, and testing. An [example application](tests) is provided

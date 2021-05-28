@@ -276,7 +276,7 @@ class Image(models.Model):
         """
         if digest:
             try:
-                blob = Blob.objects.get(digest=digest)
+                blob = Blob.objects.get(digest=digest, repository=self.repository)
                 self.blobs.add(blob)
             except Blob.DoesNotExist:
                 pass

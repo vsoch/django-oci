@@ -116,9 +116,9 @@ def generate_jwt(username, scope, realm, repository):
         "jti": jti,
         "access": [{"type": "repository", "name": repository, "actions": scope}],
     }
-    token = jwt.encode(payload, settings.JWT_SERVER_SECRET, algorithm="HS256").decode(
-        "utf-8"
-    )
+    token = jwt.encode(payload, settings.JWT_SERVER_SECRET, algorithm="HS256")
+    if isinstance(token, bytes):
+        token = token.decode("utf-8")
     return {
         "token": token,
         "expires_in": settings.TOKEN_EXPIRES_SECONDS,

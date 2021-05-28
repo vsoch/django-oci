@@ -1,3 +1,4 @@
 djangorestframework
 django-ratelimit==3.0.0
 pyjwt==1.7.1
+requests
