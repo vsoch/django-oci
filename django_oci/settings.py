@@ -34,8 +34,6 @@ authenticated_views = [
 DEFAULTS = {
     # Url base prefix
     "URL_PREFIX": "v2",
-    # Disable mounting other blobs
-    "DISABLE_MOUNT": True,
     # Disable registry authentication
     "DISABLE_AUTHENTICATION": False,
     # Version of distribution spec
@@ -88,7 +86,6 @@ PRIVATE_ONLY = oci.get("PRIVATE_ONLY", DEFAULTS["PRIVATE_ONLY"])
 CONTENT_TYPES = oci.get("CONTENT_TYPES", DEFAULTS["CONTENT_TYPES"])
 JWT_SERVER_SECRET = oci.get("JWT_SERVER_SECRET", DEFAULTS["JWT_SERVER_SECRET"])
 STORAGE_BACKEND = oci.get("STORAGE_BACKEND", DEFAULTS["STORAGE_BACKEND"])
-DISABLE_MOUNT = oci.get("DISABLE_MOUNT", DEFAULTS["DISABLE_MOUNT"])
 DOMAIN_URL = oci.get("DOMAIN_URL", DEFAULTS["DOMAIN_URL"])
 MEDIA_ROOT = oci.get("MEDIA_ROOT", DEFAULTS["MEDIA_ROOT"])
 CACHE_DIR = oci.get("CACHE_DIR", DEFAULTS["CACHE_DIR"])
