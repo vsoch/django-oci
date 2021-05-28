@@ -233,6 +233,17 @@ class FileSystemStorage(StorageBase):
         blob.save()
         return status_code
 
+    def blob_exists(self, name, digest):
+        """Given a blob repository name and digest, return a 200 response
+        with the digest of the uploaded blob in the header Docker-Content-Digest.
+        """
+        try:
+            blob = Blob.objects.get(digest=digest, repository__name=name)
+        except Blob.DoesNotExist:
+            raise Http404
+        headers = {"Docker-Content-Digest": blob.digest}
+        return Response(status=200, headers=headers)
+
     def download_blob(self, name, digest):
         """Given a blob repository name and digest, return response to stream download.
         The repository name is associated to the blob via the image.

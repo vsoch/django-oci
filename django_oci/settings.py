@@ -123,6 +123,9 @@ for entry in [
     if entry not in MIDDLEWARE:
         MIDDLEWARE.append(entry)
 
+# Default auto field
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+
 # Create a filesystem cache for temporary upload sessions
 cache = CACHE_DIR or os.path.join(MEDIA_ROOT, "cache")
 if not os.path.exists(cache):
@@ -133,7 +136,7 @@ CACHES.update(
     {
         "django_oci_upload": {
             "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
-            "LOCATION": cache,
+            "LOCATION": os.path.abspath(cache),
         }
     }
 )

@@ -99,6 +99,7 @@ class ImageManifest(APIView):
     """An Image Manifest holds the configuration and metadata about an image
     GET: is to retrieve an existing image manifest
     PUT: is to push a manifest
+    HEAD: confirm that a manifest exists.
     """
 
     renderer_classes = [ManifestRenderer, JSONRenderer]
@@ -225,3 +226,27 @@ class ImageManifest(APIView):
         if not image:
             raise Http404
         return Response(image.manifest, status=200)
+
+    @never_cache
+    @method_decorator(
+        ratelimit(
+            key="ip",
+            rate=settings.VIEW_RATE_LIMIT,
+            method="HEAD",
+            block=settings.VIEW_RATE_LIMIT_BLOCK,
+        )
+    )
+    def head(self, request, *args, **kwargs):
+        """HEAD /v2/<name>/manifests/<reference>"""
+        name = kwargs.get("name")
+        reference = kwargs.get("reference")
+        tag = kwargs.get("tag")
+
+        allow_continue, response, _ = is_authenticated(request, name)
+        if not allow_continue:
+            return response
+
+        image = get_image_by_tag(name, tag=tag, reference=reference)
+        if not image:
+            raise Http404
+        return Response(status=200)

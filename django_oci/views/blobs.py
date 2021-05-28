@@ -27,6 +27,7 @@ from django.middleware import cache
 
 from django_oci.utils import parse_content_range
 from django_oci.auth import is_authenticated
+from django.shortcuts import get_object_or_404
 
 from ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
@@ -39,6 +40,7 @@ class BlobDownload(APIView):
     allowed_methods = (
         "GET",
         "DELETE",
+        "HEAD",
     )
 
     @never_cache
@@ -85,6 +87,30 @@ class BlobDownload(APIView):
             return response
 
         return storage.delete_blob(name, digest)
+
+    @never_cache
+    @method_decorator(
+        ratelimit(
+            key="ip",
+            rate=settings.VIEW_RATE_LIMIT,
+            method="HEAD",
+            block=settings.VIEW_RATE_LIMIT_BLOCK,
+        )
+    )
+    def head(self, request, *args, **kwargs):
+        """HEAD /v2/<name>/blobs/<digest>"""
+        name = kwargs.get("name")
+        digest = kwargs.get("digest")
+
+        # If allow_continue False, return response
+        allow_continue, response, _ = is_authenticated(
+            request, name, must_be_owner=True
+        )
+        if not allow_continue:
+            return response
+
+        # A HEAD request to an existing blob or manifest URL MUST return 200 OK.
+        return storage.blob_exists(name, digest)
 
 
 class BlobUpload(APIView):
@@ -146,10 +172,7 @@ class BlobUpload(APIView):
 
         # Break apart into blob id, and session uuid (version)
         _, blob_id, version = session_id.split("/")
-        try:
-            blob = Blob.objects.get(id=blob_id, digest=version)
-        except Blob.DoesNotExist:
-            return Response(status=404)
+        blob = get_object_or_404(Blob, id=blob_id, digest=version)
 
         # If allow_continue False, return response
         allow_continue, response, _ = is_authenticated(
@@ -240,11 +263,7 @@ class BlobUpload(APIView):
 
         # Break apart into blob id and session uuid
         _, blob_id, version = session_id.split("/")
-        try:
-            blob = Blob.objects.get(id=blob_id, digest=version)
-        except Blob.DoesNotExist:
-            return Response(status=404)
-
+        blob = get_object_or_404(Blob, id=blob_id, digest=version)
         allow_continue, response, _ = is_authenticated(
             request, blob.repository, must_be_owner=True
         )
@@ -280,13 +299,9 @@ class BlobUpload(APIView):
         # the name is only used to validate the user has permission to upload
         name = kwargs.get("name")
 
-        # For check media type and content length (if needed)
-        content_length = int(request.META.get("CONTENT_LENGTH", 0))
-        content_type = request.META.get("CONTENT_TYPE", settings.DEFAULT_CONTENT_TYPE)
-
-        # If no content length, tell the user it's required
-        if content_length in [None, ""]:
-            return Response(status=411)
+        # Look if we want to mount (get) a blob from another repository
+        mount = request.GET.get("mount")
+        from_repo = request.GET.get("from")
 
         # Validate user having a token, no repository required
         allow_continue, response, user = is_authenticated(
@@ -295,7 +310,15 @@ class BlobUpload(APIView):
         if not allow_continue:
             return response
 
-        # Get or create repository
+        # For check media type and content length (if needed)
+        content_length = int(request.META.get("CONTENT_LENGTH", 0))
+        content_type = request.META.get("CONTENT_TYPE", settings.DEFAULT_CONTENT_TYPE)
+
+        # If no content length, tell the user it's required
+        if content_length in [None, ""]:
+            return Response(status=411)
+
+        # Get or create the requested repository
         repository, created = Repository.objects.get_or_create(name=name)
 
         # If created, add user to owners
@@ -334,7 +357,30 @@ class BlobUpload(APIView):
                 repository=repository,
             )
 
-        # Case 2; Content type length 0 indicates chunked upload
+        # Case 2: Mount a blob from a different repository
+        # /v2/<name>/blobs/uploads/?mount=<digest>&from=<other_name>
+        elif mount and from_repo:
+
+            # Get the existing repository
+            from_repository = get_object_or_404(Repository, name=from_repo)
+
+            # Mount is the digest of the blob we need. We use the same datafile
+            try:
+                blob = Blob.objects.get(digest=mount, repository=repository)
+            except Blob.DoesNotExist:
+                # Cross-mounting of nonexistent blob should yield session id
+                return storage.create_blob_request(from_repository)
+
+            # Unset the pk and id, and add a new repository
+            blob.pk = None
+            blob.id = None
+            blob.repository = from_repository
+            blob.save()
+
+            # Successful mount MUST be 201 Created, and MUST contain Location: <blob-location>
+            return Response(status=201, headers={"Location": blob.get_download_url()})
+
+        # Case 3; Content type length 0 indicates chunked upload
         elif content_length != 0:
             return storage.create_blob_request(repository)
 
