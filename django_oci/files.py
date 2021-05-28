@@ -105,6 +105,3 @@ class ChunkedUpload(models.Model):
         self.file.close()
         self.file.open(mode="rb")  # mode = read+binary
         return UploadedFile(file=self.file, name=self.filename, size=self.offset)
-
-    class Meta:
-        abstract = True
