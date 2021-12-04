@@ -208,7 +208,7 @@ class Blob(models.Model):
         """Blobs are loosely associated with repositories."""
         if self.remotefile is not None:
             return self.remotefile
-        return settings.DOMAIN_URL.strip("/") + reverse(
+        return reverse(
             "django_oci:blob_download",
             kwargs={"digest": self.digest, "name": self.repository.name},
         )
