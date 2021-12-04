@@ -186,9 +186,9 @@ class APIPushTests(APITestCase):
         # This should allow HTTP_202_ACCEPTED too
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue("Location" in response.headers)
-
-        download_url = response.headers["Location"]
+        download_url = add_url_prefix(response.headers["Location"])
         response = requests.get(download_url, headers=auth_headers)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Test upload request from another repository
@@ -206,7 +206,7 @@ class APIPushTests(APITestCase):
         assert "Location" in response.headers
 
         assert non_standard_name in response.headers["Location"]
-        download_url = response.headers["Location"]
+        download_url = add_url_prefix(response.headers["Location"])
         response = requests.get(download_url, headers=auth_headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -340,11 +340,8 @@ class APIPushTests(APITestCase):
         )
         assert response.status_code == 201
         assert "Location" in response.headers
-        download_url = response.headers["Location"]
+        download_url = add_url_prefix(response.headers["Location"])
 
-        # If the response url doesn't start with http, make sure to add
-        if not download_url.startswith('http'):
-            download_url = "http://127.0.0.1:8000%s" % download_url
         response = requests.get(download_url, headers=headers if headers else None)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -368,3 +365,9 @@ class APIPushTests(APITestCase):
             self.data = fd.read()
         self._digest = calculate_digest(self.data)
         self.digest = "sha256:%s" % self._digest
+
+
+def add_url_prefix(download_url):
+    if not download_url.startswith("http"):
+        download_url = "http://127.0.0.1:8000%s" % download_url
+    return download_url
