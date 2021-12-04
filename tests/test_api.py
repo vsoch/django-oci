@@ -341,6 +341,10 @@ class APIPushTests(APITestCase):
         assert response.status_code == 201
         assert "Location" in response.headers
         download_url = response.headers["Location"]
+
+        # If the response url doesn't start with http, make sure to add
+        if not download_url.startswith('http'):
+            download_url = "http://127.0.0.1:8000%s" % download_url
         response = requests.get(download_url, headers=headers if headers else None)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
