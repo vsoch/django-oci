@@ -268,14 +268,6 @@ class FileSystemStorage(StorageBase):
                     "Content-Disposition"
                 ] = "inline; filename=" + os.path.basename(blob.datafile.name)
                 return response
-        else:
-            print("doesnt exist")
-            print(name)
-            print(digest)
-            print(blob)
-            import IPython
-
-            IPython.embed()
 
         # If we get here, file doesn't exist
         raise Http404
