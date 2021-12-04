@@ -100,7 +100,7 @@ class FileSystemStorage(StorageBase):
                 shutil.move(blob.datafile.path, final_path)
             else:
                 os.remove(blob.datafile.name)
-            blob.datafile.name = digest
+            blob.datafile.name = final_path
 
         # Delete the blob if it already existed
         try:
@@ -251,6 +251,14 @@ class FileSystemStorage(StorageBase):
         try:
             blob = Blob.objects.get(digest=digest, repository__name=name)
         except Blob.DoesNotExist:
+            try:
+                # Try getting a cross mounted blob with matching digest (any name)
+                blob = Blob.objects.filter(digest=digest).first()
+            except Blob.DoesNotExist:
+                raise Http404
+
+        # If we don't have a blob, no go.
+        if not blob:
             raise Http404
 
         if os.path.exists(blob.datafile.name):
@@ -260,6 +268,14 @@ class FileSystemStorage(StorageBase):
                     "Content-Disposition"
                 ] = "inline; filename=" + os.path.basename(blob.datafile.name)
                 return response
+        else:
+            print("doesnt exist")
+            print(name)
+            print(digest)
+            print(blob)
+            import IPython
+
+            IPython.embed()
 
         # If we get here, file doesn't exist
         raise Http404

@@ -53,7 +53,7 @@ class BlobDownload(APIView):
         )
     )
     def get(self, request, *args, **kwargs):
-        """POST /v2/<name>/blobs/<digest>"""
+        """GET /v2/<name>/blobs/<digest>"""
         # the name is only used to validate the user has permission to upload
         name = kwargs.get("name")
         digest = kwargs.get("digest")
@@ -373,7 +373,9 @@ class BlobUpload(APIView):
             blob.pk = None
             blob.id = None
             blob.repository = repository
+            blob.digest = mount
             blob.save()
+            from_repository.save()
 
             # Successful mount MUST be 201 Created, and MUST contain Location: <blob-location>
             return Response(status=201, headers={"Location": blob.get_download_url()})

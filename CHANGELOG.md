@@ -14,6 +14,7 @@ Critical items to know are:
  - changed behaviour
 
 ## [master](https://github.com/vsoch/django-oci/tree/master)
+ - Bug with filesystem save (saving without full image path) (0.0.15)
  - Adding mount and HEAD new endpoints for distribution spec (0.0.14)
  - View specific permission (pull,push) required (0.0.13)
  - Adding Django ratelimit to protect views (0.0.12)
