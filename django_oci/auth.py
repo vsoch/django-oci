@@ -58,6 +58,10 @@ def is_authenticated(
 
     # If authentication is disabled, return the original view
     if settings.DISABLE_AUTHENTICATION or view_name not in settings.AUTHENTICATED_VIEWS:
+        print(f"{settings.DISABLE_AUTHENTICATION}")
+        print(
+            f"{view_name} is not in authenticated views: {settings.AUTHENTICATED_VIEWS}"
+        )
         return True, None, None
 
     # Ensure repository is valid, only if provided

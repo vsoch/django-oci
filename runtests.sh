@@ -22,3 +22,4 @@ DISABLE_AUTHENTICATION=yes python manage.py test tests.test_conformance
 cleanup
 
 # python manage.py test --noinput
+fuser -k 8000/tcp

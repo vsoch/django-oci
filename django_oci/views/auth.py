@@ -34,14 +34,18 @@ from django_oci.utils import get_server
 @permission_classes([])
 @method_decorator(never_cache, name="dispatch")
 class GetAuthToken(APIView):
-    """Given a GET request for a token, validate and return it."""
+    """
+    Given a GET request for a token, validate and return it.
+    """
 
     permission_classes = []
     allowed_methods = ("GET",)
 
     @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
-        """GET /auth/token"""
+        """
+        GET /auth/token
+        """
         print("GET /auth/token")
         user = get_user(request)
 

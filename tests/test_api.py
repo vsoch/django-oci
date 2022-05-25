@@ -32,14 +32,17 @@ token = str(user.auth_token)
 
 
 def calculate_digest(blob):
-    """Given a blob (the body of a response) calculate the sha256 digest"""
+    """
+    Given a blob (the body of a response) calculate the sha256 digest
+    """
     hasher = hashlib.sha256()
     hasher.update(blob)
     return hasher.hexdigest()
 
 
 def get_auth_header(username, password):
-    """django oci requires the user token as the password to generate a longer
+    """
+    django oci requires the user token as the password to generate a longer
     auth token that will expire after some number of seconds
     """
     auth_str = "%s:%s" % (username, password)
@@ -48,7 +51,8 @@ def get_auth_header(username, password):
 
 
 def get_authentication_headers(response):
-    """Given a requests.Response, assert that it has status code 401 and
+    """
+    Given a requests.Response, assert that it has status code 401 and
     provides the Www-Authenticate header that can be parsed for the request
     """
     assert response.status_code == 401
@@ -78,7 +82,9 @@ def get_authentication_headers(response):
 
 
 def read_in_chunks(image, chunk_size=1024):
-    """Helper function to read file in chunks, with default size 1k."""
+    """
+    Helper function to read file in chunks, with default size 1k.
+    """
     while True:
         data = image.read(chunk_size)
         if not data:
@@ -87,7 +93,9 @@ def read_in_chunks(image, chunk_size=1024):
 
 
 def get_manifest(config_digest, layer_digest):
-    """A dummy image manifest with a config and single image layer"""
+    """
+    A dummy image manifest with a config and single image layer
+    """
     return json.dumps(
         {
             "schemaVersion": 2,

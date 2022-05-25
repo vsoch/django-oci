@@ -30,6 +30,8 @@ authenticated_views = [
     "django_oci.views.blobs.BlobDownload",
     "django_oci.views.image.ImageTags",
     "django_oci.views.image.ImageManifest",
+    "django_oci.views.image.view",
+    "django_oci.views.blobs.view",
 ]
 
 DEFAULTS = {

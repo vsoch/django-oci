@@ -24,8 +24,8 @@ app_name = "django_oci"
 
 
 urlpatterns = [
-    re_path(
-        r"^auth/token/?$",
+    path(
+        "auth/token/",
         views.GetAuthToken.as_view(),
         name="get_auth_token",
     ),
