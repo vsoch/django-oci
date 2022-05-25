@@ -3,4 +3,4 @@ djangorestframework
 django-ratelimit==3.0.0
 opencontainers
 requests
-pyjwt==1.7.1
+pyjwt

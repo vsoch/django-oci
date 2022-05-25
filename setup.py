@@ -38,7 +38,7 @@ setup(
         "django_oci",
     ],
     include_package_data=True,
-    install_requires=["djangorestframework", "pyjwt==1.7.1", "django-ratelimit==3.0.0"],
+    install_requires=["djangorestframework", "pyjwt", "django-ratelimit==3.0.0"],
     license="Apache Software License 2.0",
     zip_safe=False,
     keywords="django-oci",
