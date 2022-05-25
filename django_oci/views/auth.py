@@ -20,8 +20,7 @@ import re
 
 from django.http import HttpResponseForbidden
 from django.views.decorators.cache import never_cache
-from rest_framework.decorators import (authentication_classes,
-                                       permission_classes)
+from rest_framework.decorators import authentication_classes, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
