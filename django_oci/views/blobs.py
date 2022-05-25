@@ -16,25 +16,25 @@ limitations under the License.
 
 """
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from django.views.decorators.cache import never_cache
-
-from django_oci.models import Blob, Repository
-from django_oci import settings
-from django_oci.storage import storage
 from django.middleware import cache
-
-from django_oci.utils import parse_content_range
-from django_oci.auth import is_authenticated
 from django.shortcuts import get_object_or_404
-
-from ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
+from ratelimit.decorators import ratelimit
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from django_oci import settings
+from django_oci.auth import is_authenticated
+from django_oci.models import Blob, Repository
+from django_oci.storage import storage
+from django_oci.utils import parse_content_range
 
 
 class BlobDownload(APIView):
-    """Given a GET request for a blob, stream the blob."""
+    """
+    Given a GET request for a blob, stream the blob.
+    """
 
     permission_classes = []
     allowed_methods = (
@@ -43,7 +43,6 @@ class BlobDownload(APIView):
         "HEAD",
     )
 
-    @never_cache
     @method_decorator(
         ratelimit(
             key="ip",
@@ -52,8 +51,11 @@ class BlobDownload(APIView):
             block=settings.VIEW_RATE_LIMIT_BLOCK,
         )
     )
+    @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
-        """GET /v2/<name>/blobs/<digest>"""
+        """
+        GET /v2/<name>/blobs/<digest>
+        """
         # the name is only used to validate the user has permission to upload
         name = kwargs.get("name")
         digest = kwargs.get("digest")
@@ -65,7 +67,6 @@ class BlobDownload(APIView):
 
         return storage.download_blob(name, digest)
 
-    @never_cache
     @method_decorator(
         ratelimit(
             key="ip",
@@ -75,7 +76,9 @@ class BlobDownload(APIView):
         )
     )
     def delete(self, request, *args, **kwargs):
-        """DELETE /v2/<name>/blobs/<digest>"""
+        """
+        DELETE /v2/<name>/blobs/<digest>
+        """
         name = kwargs.get("name")
         digest = kwargs.get("digest")
 
@@ -88,7 +91,7 @@ class BlobDownload(APIView):
 
         return storage.delete_blob(name, digest)
 
-    @never_cache
+    @method_decorator(never_cache)
     @method_decorator(
         ratelimit(
             key="ip",
@@ -98,7 +101,9 @@ class BlobDownload(APIView):
         )
     )
     def head(self, request, *args, **kwargs):
-        """HEAD /v2/<name>/blobs/<digest>"""
+        """
+        HEAD /v2/<name>/blobs/<digest>
+        """
         name = kwargs.get("name")
         digest = kwargs.get("digest")
 
@@ -114,7 +119,8 @@ class BlobDownload(APIView):
 
 
 class BlobUpload(APIView):
-    """An image push will receive a request to push, authenticate the user,
+    """
+    An image push will receive a request to push, authenticate the user,
     and return an upload url (url is /v2/<name>/blobs/uploads/)
     """
 
@@ -125,7 +131,7 @@ class BlobUpload(APIView):
         "PATCH",
     )
 
-    @never_cache
+    @method_decorator(never_cache)
     @method_decorator(
         ratelimit(
             key="ip",
@@ -135,7 +141,8 @@ class BlobUpload(APIView):
         )
     )
     def put(self, request, *args, **kwargs):
-        """PUT /v2/<name>/blobs/uploads/
+        """
+        PUT /v2/<name>/blobs/uploads/
         A put request can happen in two scenarios. 1. after a POST request,
         and must include a session_id. The session id is created via the file
         system cache, and each one includes the request type, image id
@@ -225,7 +232,7 @@ class BlobUpload(APIView):
             digest=digest,
         )
 
-    @never_cache
+    @method_decorator(never_cache)
     def patch(self, request, *args, **kwargs):
         """a patch request is done after a POST with content-length 0 to indicate
         a chunked upload request.
@@ -282,7 +289,7 @@ class BlobUpload(APIView):
             content_length=content_length,
         )
 
-    @never_cache
+    @method_decorator(never_cache)
     @method_decorator(
         ratelimit(
             key="ip",
@@ -292,7 +299,9 @@ class BlobUpload(APIView):
         )
     )
     def post(self, request, *args, **kwargs):
-        """POST /v2/<name>/blobs/uploads/"""
+        """
+        POST /v2/<name>/blobs/uploads/
+        """
 
         # the name is only used to validate the user has permission to upload
         name = kwargs.get("name")

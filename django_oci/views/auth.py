@@ -16,18 +16,18 @@ limitations under the License.
 
 """
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.decorators import authentication_classes, permission_classes
+import re
+
+from django.http import HttpResponseForbidden
 from django.views.decorators.cache import never_cache
+from rest_framework.decorators import (authentication_classes,
+                                       permission_classes)
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from django_oci import settings
-from django.http import HttpResponseForbidden
-
+from django_oci.auth import generate_jwt, get_user
 from django_oci.utils import get_server
-from django_oci.auth import get_user, generate_jwt
-
-import re
 
 
 @authentication_classes([])

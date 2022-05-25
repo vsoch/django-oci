@@ -15,11 +15,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 """
+from django.contrib.auth import get_user_model
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
-from .models import Image
 from rest_framework.authtoken.models import Token
-from django.contrib.auth import get_user_model
+
+from .models import Image
 
 UserModel = get_user_model()
 

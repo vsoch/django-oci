@@ -16,19 +16,19 @@ limitations under the License.
 
 """
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.renderers import JSONRenderer
 from django.http.response import Http404
-from django.views.decorators.cache import never_cache
-
-from django_oci.models import Repository, get_image_by_tag
-from django_oci import settings
-from .parsers import ManifestRenderer
-from django_oci.auth import is_authenticated
-
-from ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
+from ratelimit.decorators import ratelimit
+from rest_framework.renderers import JSONRenderer
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from django_oci import settings
+from django_oci.auth import is_authenticated
+from django_oci.models import Repository, get_image_by_tag
+
+from .parsers import ManifestRenderer
 
 
 class ImageTags(APIView):

@@ -16,18 +16,18 @@ limitations under the License.
 
 """
 
-from django.core.files.storage import FileSystemStorage
-from django_oci import settings
-from django.urls import reverse
-from django.db import models
-from django.contrib.auth.models import User
-from django.middleware import cache
-
 import hashlib
 import json
 import os
 import re
 
+from django.contrib.auth.models import User
+from django.core.files.storage import FileSystemStorage
+from django.db import models
+from django.middleware import cache
+from django.urls import reverse
+
+from django_oci import settings
 
 PRIVACY_CHOICES = (
     (False, "Public (The collection will be accessible by anyone)"),

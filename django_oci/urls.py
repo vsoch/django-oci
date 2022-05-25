@@ -16,9 +16,9 @@ limitations under the License.
 
 """
 
-from django.urls import re_path, path
-from django_oci import views
-from django_oci import settings
+from django.urls import path, re_path
+
+from django_oci import settings, views
 
 app_name = "django_oci"
 

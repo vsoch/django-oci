@@ -16,19 +16,20 @@ limitations under the License.
 
 """
 
-from django.http.response import Http404, HttpResponse
-from django.urls import reverse
-from django_oci import settings
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django_oci.files import ChunkedUpload
-from django_oci.models import Blob
-from rest_framework.response import Response
-
 import hashlib
 import logging
+import os
 import shutil
 import uuid
-import os
+
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.http.response import Http404, HttpResponse
+from django.urls import reverse
+from rest_framework.response import Response
+
+from django_oci import settings
+from django_oci.files import ChunkedUpload
+from django_oci.models import Blob
 
 logger = logging.getLogger(__name__)
 
