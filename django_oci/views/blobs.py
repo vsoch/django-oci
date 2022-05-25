@@ -31,6 +31,7 @@ from django_oci.storage import storage
 from django_oci.utils import parse_content_range
 
 
+@method_decorator(never_cache, name="dispatch")
 class BlobDownload(APIView):
     """
     Given a GET request for a blob, stream the blob.
@@ -118,6 +119,7 @@ class BlobDownload(APIView):
         return storage.blob_exists(name, digest)
 
 
+@method_decorator(never_cache, name="dispatch")
 class BlobUpload(APIView):
     """
     An image push will receive a request to push, authenticate the user,

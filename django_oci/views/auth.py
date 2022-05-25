@@ -32,6 +32,7 @@ from django_oci.utils import get_server
 
 @authentication_classes([])
 @permission_classes([])
+@method_decorator(never_cache, name="dispatch")
 class GetAuthToken(APIView):
     """Given a GET request for a token, validate and return it."""
 
