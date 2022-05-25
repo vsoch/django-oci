@@ -1,6 +1,6 @@
 """
 
-Copyright (c) 2020, Vanessa Sochat
+Copyright (c) 2020-2022, Vanessa Sochat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ limitations under the License.
 
 """
 
-from django.conf.urls import url
+from django.urls import url
 from django.urls import path
 from django_oci import views
 from django_oci import settings
