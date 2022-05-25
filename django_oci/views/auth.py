@@ -37,7 +37,7 @@ class GetAuthToken(APIView):
     permission_classes = []
     allowed_methods = ("GET",)
 
-    @never_cache
+    @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
         """GET /auth/token"""
         print("GET /auth/token")
