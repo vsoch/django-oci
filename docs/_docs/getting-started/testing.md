@@ -83,4 +83,4 @@ export OCI_TEST_CONTENT_MANAGEMENT=1
 ```
 
 And then you'll have a report (html and xml) in the test folder! This can be submit to the
-distribution spec respository to validate your registry.
+distribution spec repository to validate your registry.
