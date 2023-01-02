@@ -1,6 +1,6 @@
 """
 
-Copyright (c) 2020, Vanessa Sochat
+Copyright (c) 2020-2023, Vanessa Sochat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,14 +16,15 @@ limitations under the License.
 
 """
 
-from django.core.files.base import ContentFile
-from django.core.files.uploadedfile import UploadedFile
-from django_oci.settings import MEDIA_ROOT
-from django.db import models
+import hashlib
+import os
 from datetime import timezone
 
-import os
-import hashlib
+from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import UploadedFile
+from django.db import models
+
+from django_oci.settings import MEDIA_ROOT
 
 
 class ChunkedUpload(models.Model):

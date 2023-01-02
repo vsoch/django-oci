@@ -1,6 +1,6 @@
 """
 
-Copyright (c) 2020, Vanessa Sochat
+Copyright (c) 2020-2023, Vanessa Sochat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,31 +16,36 @@ limitations under the License.
 
 """
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.decorators import authentication_classes, permission_classes
+import re
+
+from django.http import HttpResponseForbidden
+from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
+from rest_framework.decorators import authentication_classes, permission_classes
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from django_oci import settings
-from django.http import HttpResponseForbidden
-
+from django_oci.auth import generate_jwt, get_user
 from django_oci.utils import get_server
-from django_oci.auth import get_user, generate_jwt
-
-import re
 
 
 @authentication_classes([])
 @permission_classes([])
+@method_decorator(never_cache, name="dispatch")
 class GetAuthToken(APIView):
-    """Given a GET request for a token, validate and return it."""
+    """
+    Given a GET request for a token, validate and return it.
+    """
 
     permission_classes = []
     allowed_methods = ("GET",)
 
-    @never_cache
+    @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
-        """GET /auth/token"""
+        """
+        GET /auth/token
+        """
         print("GET /auth/token")
         user = get_user(request)
 

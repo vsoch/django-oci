@@ -1,6 +1,6 @@
 """
 
-Copyright (C) 2020 Vanessa Sochat.
+Copyright (C) 2020-2023 Vanessa Sochat.
 
 This Source Code Form is subject to the terms of the
 Mozilla Public License, v. 2.0. If a copy of the MPL was not distributed
@@ -16,10 +16,11 @@ DJANGO_OCI = {
 
 """
 
-from django.conf import settings
 import logging
-import uuid
 import os
+import uuid
+
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,8 @@ authenticated_views = [
     "django_oci.views.blobs.BlobDownload",
     "django_oci.views.image.ImageTags",
     "django_oci.views.image.ImageManifest",
+    "django_oci.views.image.view",
+    "django_oci.views.blobs.view",
 ]
 
 DEFAULTS = {

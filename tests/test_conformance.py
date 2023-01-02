@@ -5,12 +5,12 @@ test_django-oci api
 Tests for `django-oci` conformance
 """
 
-from rest_framework.test import APITestCase
-
-from time import sleep
+import os
 import subprocess
 import sys
-import os
+from time import sleep
+
+from rest_framework.test import APITestCase
 
 here = os.path.abspath(os.path.dirname(__file__))
 

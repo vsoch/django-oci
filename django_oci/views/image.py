@@ -1,6 +1,6 @@
 """
 
-Copyright (c) 2020, Vanessa Sochat
+Copyright (c) 2020-2023, Vanessa Sochat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,28 +16,30 @@ limitations under the License.
 
 """
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.renderers import JSONRenderer
 from django.http.response import Http404
-from django.views.decorators.cache import never_cache
-
-from django_oci.models import Repository, get_image_by_tag
-from django_oci import settings
-from .parsers import ManifestRenderer
-from django_oci.auth import is_authenticated
-
-from ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
+from ratelimit.decorators import ratelimit
+from rest_framework.renderers import JSONRenderer
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from django_oci import settings
+from django_oci.auth import is_authenticated
+from django_oci.models import Repository, get_image_by_tag
+
+from .parsers import ManifestRenderer
 
 
+@method_decorator(never_cache, name="dispatch")
 class ImageTags(APIView):
-    """Return a list of tags for an image."""
+    """
+    Return a list of tags for an image.
+    """
 
     permission_classes = []
     allowed_methods = ("GET",)
 
-    @never_cache
     @method_decorator(
         ratelimit(
             key="ip",
@@ -46,8 +48,10 @@ class ImageTags(APIView):
             block=settings.VIEW_RATE_LIMIT_BLOCK,
         )
     )
+    @method_decorator(never_cache)
     def get(self, request, *args, **kwargs):
-        """GET /v2/<name>/tags/list. We don't require authentication to list tags,
+        """
+        GET /v2/<name>/tags/list. We don't require authentication to list tags,
         unless the repository is private.
         """
         name = kwargs.get("name")
@@ -95,8 +99,10 @@ class ImageTags(APIView):
         return Response(status=200, data=data)
 
 
+@method_decorator(never_cache, name="dispatch")
 class ImageManifest(APIView):
-    """An Image Manifest holds the configuration and metadata about an image
+    """
+    An Image Manifest holds the configuration and metadata about an image
     GET: is to retrieve an existing image manifest
     PUT: is to push a manifest
     HEAD: confirm that a manifest exists.
@@ -110,7 +116,7 @@ class ImageManifest(APIView):
         "DELETE",
     )
 
-    @never_cache
+    @method_decorator(never_cache)
     @method_decorator(
         ratelimit(
             key="ip",
@@ -120,8 +126,9 @@ class ImageManifest(APIView):
         )
     )
     def delete(self, request, *args, **kwargs):
-        """DELETE /v2/<name>/manifests/<tag>"""
-
+        """
+        DELETE /v2/<name>/manifests/<tag>
+        """
         # A registry must globally disable or enable both
         if settings.DISABLE_TAG_MANIFEST_DELETE:
             return Response(status=405)
@@ -154,7 +161,7 @@ class ImageManifest(APIView):
         # Upon success, the registry MUST respond with a 202 Accepted code.
         return Response(status=202)
 
-    @never_cache
+    @method_decorator(never_cache)
     @method_decorator(
         ratelimit(
             key="ip",
@@ -164,7 +171,8 @@ class ImageManifest(APIView):
         )
     )
     def put(self, request, *args, **kwargs):
-        """PUT /v2/<name>/manifests/<reference>
+        """
+        PUT /v2/<name>/manifests/<reference>
         https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pushing-manifests
         """
         # We likely can default to the v1 manifest, unless otherwise specified
@@ -199,7 +207,7 @@ class ImageManifest(APIView):
 
         return Response(status=201, headers={"Location": image.get_manifest_url()})
 
-    @never_cache
+    @method_decorator(never_cache)
     @method_decorator(
         ratelimit(
             key="ip",
@@ -209,7 +217,9 @@ class ImageManifest(APIView):
         )
     )
     def get(self, request, *args, **kwargs):
-        """GET /v2/<name>/manifests/<reference>"""
+        """
+        GET /v2/<name>/manifests/<reference>
+        """
 
         name = kwargs.get("name")
         reference = kwargs.get("reference")
@@ -227,7 +237,7 @@ class ImageManifest(APIView):
             raise Http404
         return Response(image.manifest, status=200)
 
-    @never_cache
+    @method_decorator(never_cache)
     @method_decorator(
         ratelimit(
             key="ip",
@@ -237,7 +247,9 @@ class ImageManifest(APIView):
         )
     )
     def head(self, request, *args, **kwargs):
-        """HEAD /v2/<name>/manifests/<reference>"""
+        """
+        HEAD /v2/<name>/manifests/<reference>
+        """
         name = kwargs.get("name")
         reference = kwargs.get("reference")
         tag = kwargs.get("tag")

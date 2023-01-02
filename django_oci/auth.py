@@ -1,6 +1,6 @@
 """
 
-Copyright (c) 2020, Vanessa Sochat
+Copyright (c) 2020-2023, Vanessa Sochat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,24 +15,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 """
-from django.urls import resolve
-from django.contrib.auth.models import User
-
-from django_oci import settings
-from django_oci.utils import get_server
-from django_oci.models import Repository
-
-from rest_framework.authtoken.models import Token
-from rest_framework.response import Response
-
-from django.middleware import cache
-
-from datetime import datetime
-import uuid
 import base64
 import re
 import time
+import uuid
+from datetime import datetime
+
 import jwt
+from django.contrib.auth.models import User
+from django.middleware import cache
+from django.urls import resolve
+from rest_framework.authtoken.models import Token
+from rest_framework.response import Response
+
+from django_oci import settings
+from django_oci.models import Repository
+from django_oci.utils import get_server
 
 
 def is_authenticated(
@@ -60,6 +58,10 @@ def is_authenticated(
 
     # If authentication is disabled, return the original view
     if settings.DISABLE_AUTHENTICATION or view_name not in settings.AUTHENTICATED_VIEWS:
+        print(f"{settings.DISABLE_AUTHENTICATION}")
+        print(
+            f"{view_name} is not in authenticated views: {settings.AUTHENTICATED_VIEWS}"
+        )
         return True, None, None
 
     # Ensure repository is valid, only if provided
@@ -212,7 +214,7 @@ def get_user(request):
             token = Token.objects.get(key=token)
             if token.user.username == username:
                 return token.user
-        except:
+        except Exception:
             pass
 
 

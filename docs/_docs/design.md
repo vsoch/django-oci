@@ -37,7 +37,7 @@ These last set of features are not yet implemented.
 ## Images
 
 An image model is technically referring to an image manifest. This means it points to one
-or more blobs, and has metadata about an image. The image manifest itself is stored in the 
+or more blobs, and has metadata about an image. The image manifest itself is stored in the
 exact same byte stream as it's provided (BinaryField), and the blobs and annotations are extracted
 after parsing from string to json. An image (manifest) is also directly linked (or owned)
 by a repository, and each manifest has a many to many relationship to point to one or more blobs
@@ -56,7 +56,7 @@ by an oci compliant client. To eventually support remote file storage, blobs hav
 
 A tag is typically a small string to describe a version of a manifest, e.g., "latest."
 Tags fall under the general description of a "digest" which can also include a sha256 sum.
-In the case of the implementation here, Tags are represented in their own table, and 
+In the case of the implementation here, Tags are represented in their own table, and
 have fields for a name, and then a foreign key to a particular image. This means
 that one image can have more than one tag, and tags are not shared between images.
 
@@ -68,4 +68,3 @@ it might be redundant to store "the same" tag or annotation for different reposi
 this approach is taken to mirror the design choice to not have shared model instances
 between repositories. This design choice could of course change if there is compelling
 reason.
-

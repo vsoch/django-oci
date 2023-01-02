@@ -11,24 +11,22 @@ jobs:
   formatting:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - name: Setup black environment
+      - name: Setup black linter
         run: conda create --quiet --name black pyflakes
 
-      - name: Check formatting with black
+      - name: Check Spelling
+        uses: crate-ci/typos@7ad296c72fa8265059cc03d1eda562fbdfcd6df2 # v1.9.0
+        with:
+          files: ./docs/_docs/*.md ./docs/_docs/*/*.md
+
+      - name: Lint and format Python code
         run: |
           export PATH="/usr/share/miniconda/bin:$PATH"
           source activate black
-          pip install black==20.8b1
-          black --check django_oci
-
-      - name: Check imports with pyflakes
-        run: |
-          export PATH="/usr/share/miniconda/bin:$PATH"
-          source activate black
-          #pyflakes django_oci
-
+          pip install -r .github/dev-requirements.txt
+          pre-commit run --all-files
 
   testing:
     runs-on: ubuntu-latest
