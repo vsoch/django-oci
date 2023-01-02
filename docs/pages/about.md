@@ -5,7 +5,7 @@ permalink: /about/
 
 # About
 
-Django-OCI is an opencontainers compliant registry for containers. 
+Django-OCI is an opencontainers compliant registry for containers.
 To read more about it's background, see {% include doc.html name="the introduction" path="introduction" %}.
 For license and usage information, see [the policy page]({{ site.baseurl }}/policy).
 
@@ -17,4 +17,3 @@ orchestrated registry. The tests and examples here are done with a Python virtua
 ## Support
 
 If you need help, please don't hesitate to [open an issue](https://www.github.com/{{ site.github_repo }}/{{ site.github_user }}).
-

@@ -7,7 +7,7 @@ toc: true
 # Example Application
 
 You can develop or test interactively using the example (very simple) application
-under [tests](https://github.com/vsoch/django-oci/tree/master/tests). 
+under [tests](https://github.com/vsoch/django-oci/tree/master/tests).
 First create a virtual environment with the dependencies
 that you need:
 
@@ -32,5 +32,5 @@ python manage.py migrate django_oci
 python manage.py runserver
 ```
 
-See the [tests](https://github.com/vsoch/django-oci/tree/master/tests) folder for more details, 
+See the [tests](https://github.com/vsoch/django-oci/tree/master/tests) folder for more details,
 including how to start a development server. Examples will be added.

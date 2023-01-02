@@ -7,7 +7,7 @@ badges:
    tag: update
 ---
 
-This is the first post to introduce a development version of Django-OCI! 
+This is the first post to introduce a development version of Django-OCI!
 Currently, the library supports only filesystem storage for an OCI compliant registry.
 I hope to improve this project in the coming months with the following points.
 
@@ -16,11 +16,11 @@ I hope to improve this project in the coming months with the following points.
 ## Interfaces
 
 I'd like to provide an example registry that also has interfaces to explore
-containers. 
+containers.
 
 ## Storage Backends
 
-It will be important to have support for more storage backends than the 
+It will be important to have support for more storage backends than the
 typical filesystem.
 
 ## Authentication

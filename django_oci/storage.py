@@ -1,6 +1,6 @@
 """
 
-Copyright (c) 2020-2022, Vanessa Sochat
+Copyright (c) 2020-2023, Vanessa Sochat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -107,7 +107,7 @@ class FileSystemStorage(StorageBase):
         try:
             existing_blob = Blob.objects.get(repository=blob.repository, digest=digest)
             existing_blob.delete()
-        except:
+        except Exception:
             pass
 
         blob.digest = digest
@@ -148,7 +148,7 @@ class FileSystemStorage(StorageBase):
         try:
             existing_blob = Blob.objects.get(repository=blob.repository, digest=digest)
             existing_blob.delete()
-        except:
+        except Exception:
             pass
 
         if not blob.datafile:

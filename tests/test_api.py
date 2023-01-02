@@ -5,26 +5,24 @@ test_django-oci api
 Tests for `django-oci` api.
 """
 
-from django.urls import reverse
-from django.contrib.auth.models import User
-from django_oci import settings
-from rest_framework import status
-from rest_framework.test import APITestCase
-from django.test.utils import override_settings
-from time import sleep
-from unittest import skipIf
-import subprocess
-import requests
-import hashlib
 import base64
+import hashlib
 import json
 import os
 import re
+import subprocess
+from time import sleep
+
+import requests
+from django.contrib.auth.models import User
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase
 
 here = os.path.abspath(os.path.dirname(__file__))
 
 # Boolean from environment that determines authentication required variable
-auth_regex = re.compile('(\w+)[:=] ?"?([^"]+)"?')
+auth_regex = re.compile('(\w+)[:=] ?"?([^"]+)"?')  # noqa
 
 # Important: user needs to be created globally to be seen
 user, _ = User.objects.get_or_create(username="dinosaur")

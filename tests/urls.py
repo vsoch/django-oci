@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals, absolute_import
+from __future__ import absolute_import, unicode_literals
 
-from django.urls import include, re_path
 from django.contrib import admin
+from django.urls import include, re_path
 
 urlpatterns = [
     re_path(r"^admin/", admin.site.urls),

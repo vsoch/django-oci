@@ -1,6 +1,6 @@
 """
 
-Copyright (c) 2020, Vanessa Sochat
+Copyright (c) 2020-2023, Vanessa Sochat
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -214,7 +214,7 @@ def get_user(request):
             token = Token.objects.get(key=token)
             if token.user.username == username:
                 return token.user
-        except:
+        except Exception:
             pass
 
 

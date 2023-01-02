@@ -65,5 +65,5 @@ Add django-oci's URL patterns:
 You should also read about other [options]({{ site.baseurl }}/docs/getting-started/options)
 to provide in your project settings to customize the registry, and see the [example application]({{ site.baseurl }}/docs/getting-started/example)
 for an example of deployment. Details about authentication can be read about [here]({{ site.baseurl }}/docs/getting-started/auth). This will generate a distribution-spec set of API endpoints to generally push, pull,
-and otherwise interact with a registry. What is not (yet) provided are frontend 
+and otherwise interact with a registry. What is not (yet) provided are frontend
 interfaces to see your containers.

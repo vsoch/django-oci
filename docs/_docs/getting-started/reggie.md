@@ -13,7 +13,7 @@ communicating with your django-oci registry.
 ## Python Requests
 
 If you don't want a lot of extra dependnecies, Python requests is a good way to go!
-You can look at the [api tests](https://github.com/vsoch/django-oci/blob/master/tests/test_api.py) to see 
+You can look at the [api tests](https://github.com/vsoch/django-oci/blob/master/tests/test_api.py) to see
 updated examples for push, pull, and other content
 management.
 
@@ -119,7 +119,7 @@ client.Config.Debug
 
 **With Authentication**
 
-To authenticate we need a username and password. Let's then first create your username, 
+To authenticate we need a username and password. Let's then first create your username,
 and get the token, which we will need for authenticated requests.
 
 ```python
@@ -142,8 +142,8 @@ parameters, username and the token as the password, to prepare for the 401 respo
 
 ```python
 from opencontainers.distribution.reggie import *
-client = NewClient("http://127.0.0.1:8000", 
-          WithDefaultName("myorg/myrepo"), 
+client = NewClient("http://127.0.0.1:8000",
+          WithDefaultName("myorg/myrepo"),
           WithUsernamePassword(user.username, token),
           WithDebug(True))
 ```

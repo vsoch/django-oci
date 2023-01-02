@@ -1,7 +1,7 @@
 # Contributing
 
 Contributions are welcome, and they are greatly appreciated! Every
-little bit helps, and credit will always be given. 
+little bit helps, and credit will always be given.
 
 You can contribute in many ways:
 
@@ -28,7 +28,7 @@ is open to whoever wants to implement it.
 
 ### Write Documentation
 
-django-oci could always use more documentation, whether as part of the 
+django-oci could always use more documentation, whether as part of the
 official django-oci docs, in docstrings, or even on the web in blog posts,
 articles, and such.
 
